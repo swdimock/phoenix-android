@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+.kotlin/
+
+# Local config
+local.properties
+*.keystore
+*.jks
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.cursor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Captures / logs from the truck (keep committed ones under docs/captures)
+captures/*.jsonl
+!docs/captures/**
