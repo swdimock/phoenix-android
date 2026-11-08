@@ -105,29 +105,33 @@ class McuFrameParser {
     fun feed(bytes: ByteArray): List<McuFrame> {
         val out = ArrayList<McuFrame>()
         for (b in bytes) {
-            if (buf.isEmpty() && (b.toInt() and 0xFF) != McuFrame.START) continue
             buf.add(b)
-            if (buf.size >= 3) {
-                val len = buf[2].toInt() and 0xFF
-                val total = len + 4
-                if (buf.size == total) {
-                    val frame = McuFrame.parse(buf.toByteArray())
-                    if (frame != null) {
-                        out.add(frame)
-                        buf.clear()
-                    } else {
-                        // Bad checksum: drop the start byte and rescan for a new start marker.
-                        resync()
-                    }
-                }
-            }
+            drain(out)
         }
         return out
     }
 
-    private fun resync() {
-        buf.removeAt(0)
-        while (buf.isNotEmpty() && (buf[0].toInt() and 0xFF) != McuFrame.START) buf.removeAt(0)
+    /**
+     * Emits every complete frame at the head of the buffer. A candidate that fails its checksum
+     * loses only its start byte, and the bytes already buffered behind it are rescanned, so a
+     * corrupted frame (or a stray 0x2E with a large length byte) cannot swallow the valid frames
+     * that follow it.
+     */
+    private fun drain(out: MutableList<McuFrame>) {
+        while (true) {
+            while (buf.isNotEmpty() && (buf[0].toInt() and 0xFF) != McuFrame.START) buf.removeAt(0)
+            if (buf.size < 3) return
+            val total = (buf[2].toInt() and 0xFF) + 4
+            if (buf.size < total) return
+            val head = buf.subList(0, total)
+            val frame = McuFrame.parse(head.toByteArray())
+            if (frame != null) {
+                out.add(frame)
+                head.clear()
+            } else {
+                buf.removeAt(0)
+            }
+        }
     }
 
     fun reset() = buf.clear()

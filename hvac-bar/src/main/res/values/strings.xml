@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HVAC Bar</string>
+    <string name="debug_activity_label">HVAC Bar (debug)</string>
+    <string name="notification_channel_name">Climate bar</string>
+    <string name="notification_text">Climate bar is running</string>
+    <string name="overlay_permission_denied">HVAC Bar needs permission to draw over other apps</string>
+    <string name="vehicle_link">vehicle link\u2026</string>
+    <string name="hint_not_supported">Not supported on this vehicle</string>
+    <string name="hint_send_failed">Vehicle did not accept the command</string>
+    <string name="debug_host_label">HVAC bar debug host</string>
+</resources>

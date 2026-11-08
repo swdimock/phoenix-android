@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Phoenix Launcher</string>
+    <string name="audio_channel_name">Audio path</string>
+    <string name="audio_channel_description">Shows whether the truck audio path is ready</string>
+</resources>

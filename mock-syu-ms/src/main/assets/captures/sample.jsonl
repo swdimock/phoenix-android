@@ -1,0 +1,49 @@
+# Synthetic sample capture for mock-syu-ms (NOT recorded in the truck). WK2/F-150 UNVERIFIED codes.
+{"t":0,"dir":"mark","note":"sample: registration replay snapshot"}
+{"t":5,"dir":"up","module":7,"code":37,"ints":[1]}
+{"t":7,"dir":"up","module":7,"code":10,"ints":[1]}
+{"t":9,"dir":"up","module":7,"code":11,"ints":[1]}
+{"t":11,"dir":"up","module":7,"code":13,"ints":[0]}
+{"t":13,"dir":"up","module":7,"code":62,"ints":[1]}
+{"t":15,"dir":"up","module":7,"code":12,"ints":[0]}
+{"t":17,"dir":"up","module":7,"code":53,"ints":[0]}
+{"t":19,"dir":"up","module":7,"code":65,"ints":[0]}
+{"t":21,"dir":"up","module":7,"code":16,"ints":[0]}
+{"t":23,"dir":"up","module":7,"code":21,"ints":[3]}
+{"t":25,"dir":"up","module":7,"code":27,"ints":[70]}
+{"t":27,"dir":"up","module":7,"code":28,"ints":[70]}
+{"t":29,"dir":"up","module":7,"code":18,"ints":[0]}
+{"t":31,"dir":"up","module":7,"code":19,"ints":[1]}
+{"t":33,"dir":"up","module":7,"code":20,"ints":[0]}
+{"t":35,"dir":"up","module":7,"code":29,"ints":[0]}
+{"t":37,"dir":"up","module":7,"code":30,"ints":[0]}
+{"t":39,"dir":"up","module":7,"code":31,"ints":[0]}
+{"t":41,"dir":"up","module":7,"code":32,"ints":[0]}
+{"t":60,"dir":"up","module":7,"code":1019,"ints":[46,32,2,1,1,219]}
+{"t":100,"dir":"up","module":7,"code":1019,"ints":[46,41,2,16,0,196]}
+{"t":1500,"dir":"mark","note":"driver temp up x3"}
+{"t":1900,"dir":"up","module":7,"code":27,"ints":[71]}
+{"t":2300,"dir":"up","module":7,"code":27,"ints":[72]}
+{"t":2700,"dir":"up","module":7,"code":27,"ints":[73]}
+{"t":3200,"dir":"cmd","module":7,"code":6,"ints":[1,6],"note":"fan up (user tap)"}
+{"t":3260,"dir":"up","module":7,"code":21,"ints":[4]}
+{"t":3400,"dir":"up","module":7,"code":1019,"ints":[46,41,2,75,235,158]}
+{"t":3600,"dir":"up","module":7,"code":1019,"ints":[46,41,2,228,20,220]}
+{"t":4500,"dir":"mark","note":"airflow face -> feet+windshield"}
+{"t":4520,"dir":"up","module":7,"code":18,"ints":[1]}
+{"t":4540,"dir":"up","module":7,"code":19,"ints":[0]}
+{"t":4560,"dir":"up","module":7,"code":20,"ints":[1]}
+{"t":6000,"dir":"mark","note":"MAX A/C pressed"}
+{"t":6050,"dir":"up","module":7,"code":53,"ints":[1]}
+{"t":6050,"dir":"up","module":7,"code":12,"ints":[1]}
+{"t":6050,"dir":"up","module":7,"code":21,"ints":[7]}
+{"t":6050,"dir":"up","module":7,"code":27,"ints":[-2]}
+{"t":6050,"dir":"up","module":7,"code":28,"ints":[-2]}
+{"t":8000,"dir":"mark","note":"MAX A/C off, driver seat heat cycle"}
+{"t":8050,"dir":"up","module":7,"code":53,"ints":[0]}
+{"t":8100,"dir":"up","module":7,"code":27,"ints":[72]}
+{"t":8100,"dir":"up","module":7,"code":28,"ints":[72]}
+{"t":8600,"dir":"up","module":7,"code":29,"ints":[3]}
+{"t":9200,"dir":"up","module":7,"code":29,"ints":[1]}
+{"t":9800,"dir":"up","module":7,"code":29,"ints":[0]}
+{"t":10000,"dir":"mark","note":"end of sample"}
