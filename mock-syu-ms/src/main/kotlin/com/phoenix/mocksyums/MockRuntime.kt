@@ -129,14 +129,19 @@ class MockRuntime private constructor(private val context: Context) {
         if (!_accOn.compareAndSet(true, false)) return
         rawFrames.stop()
         audio.sleep()
-        context.sendBroadcast(Intent(MockSyuDebug.ACTION_ACC_OFF))
+        broadcastToOurApps(MockSyuDebug.ACTION_ACC_OFF)
     }
 
     /** Simulated ignition on: a cold boot, readiness and audible reset. */
     fun accOn() {
         if (!_accOn.compareAndSet(false, true)) return
-        context.sendBroadcast(Intent(MockSyuDebug.ACTION_ACC_ON))
+        broadcastToOurApps(MockSyuDebug.ACTION_ACC_ON)
         coldBoot()
+    }
+
+    /** Implicit broadcasts do not reach manifest receivers on Android 8+, so address each app. */
+    private fun broadcastToOurApps(action: String) {
+        for (pkg in ACC_RECEIVER_PACKAGES) context.sendBroadcast(Intent(action).setPackage(pkg))
     }
 
     /** Restarts the boot race without an ACC cycle (applies a changed boot delay). */
@@ -178,6 +183,9 @@ class MockRuntime private constructor(private val context: Context) {
         private const val RECENT_MAX = 12
         const val CAPTURE_FILE = "capture.jsonl"
         const val SAMPLE_ASSET = "captures/sample.jsonl"
+
+        /** Apps that react to the simulated ignition broadcasts. */
+        val ACC_RECEIVER_PACKAGES = listOf("com.phoenix.hvacbar", "com.phoenix.launcher")
 
         /** Modules that hold state and deliver updates; every other id is passive. */
         val ACTIVE_MODULES = setOf(Modules.MAIN, Modules.RADIO, Modules.BT, Modules.SOUND, Modules.CANBUS, Modules.STEER, Modules.CUSTOMER)

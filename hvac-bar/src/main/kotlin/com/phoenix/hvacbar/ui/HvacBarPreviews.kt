@@ -24,6 +24,10 @@ private fun PreviewTypical() = SampleBar(BarSamples.typicalDriving)
 @Composable
 private fun PreviewAutoDual() = SampleBar(BarSamples.autoDual)
 
+@Preview(name = "Full AUTO (fan and airflow)", widthDp = 1200, heightDp = 227)
+@Composable
+private fun PreviewFullAuto() = SampleBar(BarSamples.fullAuto)
+
 @Preview(name = "Disconnected", widthDp = 1200, heightDp = 227)
 @Composable
 private fun PreviewDisconnected() = SampleBar(BarSamples.typicalDriving, ConnectionState.DISCONNECTED)

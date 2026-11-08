@@ -1,6 +1,7 @@
 package com.phoenix.fytipc.profile
 
 import com.phoenix.fytipc.climate.AirMode
+import com.phoenix.fytipc.climate.ClimateAction
 import com.phoenix.fytipc.climate.ClimateState
 import com.phoenix.fytipc.climate.Setpoint
 import kotlin.math.roundToInt
@@ -19,6 +20,9 @@ interface ClimateCodec {
 
     /** Order a seat heat/vent level walks through on each cycle press, starting from off. */
     val seatLevelCycle: List<Int>
+
+    /** Airflow modes the vehicle has a direct setter for, in the order [ClimateAction.CycleMode] walks. */
+    val settableModes: List<AirMode>
 
     /** CANBUS code -> single int value for every known field of [state], in reporting order. */
     fun encode(state: ClimateState): Map<Int, Int>
@@ -46,10 +50,13 @@ object FytTemperature {
     }
 
     /** Fahrenheit wire value for [setpoint], or null when it is unknown. */
-    fun encodeF(setpoint: Setpoint): Int? = when (setpoint.sentinel) {
+    fun encodeF(setpoint: Setpoint): Int? = encode(setpoint, celsius = false)
+
+    /** Wire value for [setpoint] in the given unit (whole F or half C), or null when it is unknown. */
+    fun encode(setpoint: Setpoint, celsius: Boolean): Int? = when (setpoint.sentinel) {
         Setpoint.Sentinel.LO -> LO
         Setpoint.Sentinel.HI -> HI
-        Setpoint.Sentinel.NONE -> setpoint.tenthsC?.let(::tenthsCToF)
+        Setpoint.Sentinel.NONE -> setpoint.tenthsC?.let { if (celsius) (it / 5.0).roundToInt() else tenthsCToF(it) }
     }
 
     fun fToTenthsC(f: Int): Int = ((f - 32) * 50 / 9.0).roundToInt()
@@ -82,39 +89,15 @@ object FytTemperature {
 
 /**
  * Airflow on FYT is three independent flags, `U_AIR_BLOW_UP/BODY/FOOT_LEFT` (18/19/20), not an
- * enum (wiki page 5). Four combinations are named by the OEM cycle button; [AirMode.DEFROST] for
- * "windshield only" is our mapping and UNVERIFIED. All-clear (AUTO owns airflow) and the
- * front-defrost macro's up+body combination both read as [AirMode.UNKNOWN].
+ * enum (wiki page 5); [ClimateState.mode] derives the name. Four combinations are named by the OEM
+ * cycle button; [AirMode.DEFROST] for "windshield only" is our mapping and UNVERIFIED. All-clear
+ * reads as [AirMode.AUTO]; the front-defrost macro's up+body combination reads as [AirMode.UNKNOWN].
  */
 object FytAirflow {
-    const val UP = 4
-    const val BODY = 2
-    const val FOOT = 1
-
-    /** OEM cycle order (wiki page 5). */
-    val OEM_CYCLE: List<AirMode> = listOf(AirMode.FACE, AirMode.FACE_FEET, AirMode.FEET, AirMode.FEET_DEFROST)
-
-    fun flagsOf(mode: AirMode): Int? = when (mode) {
-        AirMode.FACE -> BODY
-        AirMode.FACE_FEET -> BODY or FOOT
-        AirMode.FEET -> FOOT
-        AirMode.FEET_DEFROST -> UP or FOOT
-        AirMode.DEFROST -> UP
-        AirMode.UNKNOWN -> null
-    }
-
-    fun modeOf(flags: Int): AirMode = when (flags) {
-        BODY -> AirMode.FACE
-        BODY or FOOT -> AirMode.FACE_FEET
-        FOOT -> AirMode.FEET
-        UP or FOOT -> AirMode.FEET_DEFROST
-        UP -> AirMode.DEFROST
-        else -> AirMode.UNKNOWN
-    }
-
-    /** Next mode the OEM cycle button would select; anything off-cycle restarts at FACE. */
-    fun nextInCycle(mode: AirMode): AirMode {
-        val i = OEM_CYCLE.indexOf(mode)
-        return if (i < 0) AirMode.FACE else OEM_CYCLE[(i + 1) % OEM_CYCLE.size]
+    /** Mode after [current] in [settable]; anything not in [settable] restarts at its first entry. */
+    fun next(current: AirMode, settable: List<AirMode>): AirMode {
+        require(settable.isNotEmpty()) { "no settable airflow modes" }
+        val i = settable.indexOf(current)
+        return settable[(i + 1) % settable.size]
     }
 }

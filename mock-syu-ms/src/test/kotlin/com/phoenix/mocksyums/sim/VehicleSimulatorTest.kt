@@ -26,28 +26,57 @@ class VehicleSimulatorTest {
 
     @Test
     fun `every profile command inverts to its action`() {
+        val inverter = CommandInverter(profile)
+        val face = ClimateState.EMPTY.withMode(AirMode.FACE)
         for (action in ClimateActions.all) {
-            val effect = CommandInverter(profile).invert(profile.command(action, ClimateState(mode = AirMode.FACE))!!)
-            if (action == ClimateAction.CycleMode) {
-                assertThat(effect).isEqualTo(ClimateEffect.SetMode(AirMode.FACE_FEET))
-            } else {
-                assertThat(effect).isEqualTo(ClimateEffect.Action(action))
-            }
+            val command = profile.command(action, face) ?: continue
+            val expected = if (action == ClimateAction.CycleMode) ClimateAction.SetMode(AirMode.FACE_FEET) else action
+            assertThat(inverter.invert(command)).isEqualTo(expected)
         }
     }
 
     @Test
     fun `auto toggles and fan up exits auto onto fan 3 face`() {
         assertThat(sim.state.value.auto).isTrue()
+        assertThat(sim.state.value.fanAuto).isTrue()
+        assertThat(sim.state.value.mode).isEqualTo(AirMode.AUTO)
         send(ClimateAction.FanUp)
         assertThat(sim.state.value.auto).isFalse()
+        assertThat(sim.state.value.fanAuto).isFalse()
         assertThat(sim.state.value.fanSpeed).isEqualTo(3)
         assertThat(sim.state.value.mode).isEqualTo(AirMode.FACE)
         repeat(10) { send(ClimateAction.FanUp) }
         assertThat(sim.state.value.fanSpeed).isEqualTo(7)
         send(ClimateAction.ToggleAuto)
         assertThat(sim.state.value.auto).isTrue()
+        assertThat(sim.state.value.fanAuto).isTrue()
+        assertThat(sim.state.value.mode).isEqualTo(AirMode.AUTO)
         assertThat(published.last { it.code == Codes.U_AIR_WIND_LEVEL }.int0).isEqualTo(15)
+    }
+
+    @Test
+    fun `published codes reduce back to the simulated state`() {
+        sim.publishAll()
+        val boot = published.associate { it.code to it.int0 }
+        assertThat(boot[Codes.U_AIR_WIND_LEVEL]).isEqualTo(15)
+        assertThat(listOf(boot[Codes.U_AIR_BLOW_UP_LEFT], boot[Codes.U_AIR_BLOW_BODY_LEFT], boot[Codes.U_AIR_BLOW_FOOT_LEFT]))
+            .containsExactly(0, 0, 0)
+        send(ClimateAction.CycleMode)
+        val seen = published.fold(ClimateState.EMPTY) { s, u -> profile.reduce(s, u) }
+        assertThat(seen.fanAuto).isEqualTo(sim.state.value.fanAuto)
+        assertThat(seen.fanSpeed).isEqualTo(sim.state.value.fanSpeed)
+        assertThat(seen.mode).isEqualTo(sim.state.value.mode)
+        assertThat(seen.mode).isEqualTo(AirMode.FACE)
+    }
+
+    @Test
+    fun `set mode selects settable modes only`() {
+        send(ClimateAction.SetMode(AirMode.FEET_DEFROST))
+        assertThat(sim.state.value.mode).isEqualTo(AirMode.FEET_DEFROST)
+        assertThat(sim.state.value.auto).isFalse()
+        assertThat(profile.command(ClimateAction.SetMode(AirMode.DEFROST), sim.state.value)).isNull()
+        sim.press(ClimateAction.SetMode(AirMode.DEFROST))
+        assertThat(sim.state.value.mode).isEqualTo(AirMode.FEET_DEFROST)
     }
 
     @Test
@@ -84,7 +113,7 @@ class VehicleSimulatorTest {
     }
 
     @Test
-    fun `cycle mode walks the oem order and publishes the three flags`() {
+    fun `cycle mode walks the settable order and publishes the three flags`() {
         val modes = (1..5).map { send(ClimateAction.CycleMode); sim.state.value.mode }
         assertThat(modes).containsExactly(
             AirMode.FACE, AirMode.FACE_FEET, AirMode.FEET, AirMode.FEET_DEFROST, AirMode.FACE,

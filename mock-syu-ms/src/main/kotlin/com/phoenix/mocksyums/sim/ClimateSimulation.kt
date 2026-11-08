@@ -9,61 +9,53 @@ import com.phoenix.fytipc.profile.ClimateCodec
 import com.phoenix.fytipc.profile.FytAirflow
 import com.phoenix.fytipc.profile.FytTemperature
 
-/** What one received write does to the vehicle. */
-sealed interface ClimateEffect {
-    data class Action(val action: ClimateAction) : ClimateEffect
-
-    /** An idempotent airflow setter (WK2 indices 8..11). */
-    data class SetMode(val mode: AirMode) : ClimateEffect
-}
-
 /**
  * Deliberately adversarial climate model, after `wk2-climate`'s FakeVehicleBus: every rule is
  * measured WK2 behaviour unless marked UNVERIFIED (nothing here has been measured on the F-150).
  *  - AUTO toggles. On: A/C on, airflow cleared, fan reports the AUTO sentinel. Off: fan 3, FACE.
  *  - FAN_UP/FAN_DOWN while AUTO exit AUTO (fan 3, FACE); fan clamps at [ClimateCodec.fanMax].
  *  - MAX A/C: temps to LO, recirc on, A/C on, AUTO off, fan max, FACE. Front defrost: recirc on,
- *    AUTO off, fan 6, airflow unrecognised. The two macros toggle into each other.
+ *    AUTO off, fan 6, airflow windshield+face (unnamed). The two macros toggle into each other.
+ *  - Airflow setters select one of [ClimateCodec.settableModes]; the cycle walks them in order.
  *  - Setpoints step 1 F and step into/out of the LO/HI sentinels at the range ends.
  *  - DUAL polarity: `dual == false` (U_AIR_SYNC = 0) means a driver change moves both zones.
  *  - Seat heat/vent cycle 0 -> 3 -> 1 -> 0 and are mutually exclusive per seat.
  */
 object ClimateSimulation {
 
-    fun apply(state: ClimateState, effect: ClimateEffect, codec: ClimateCodec, nowMs: Long = System.currentTimeMillis()): ClimateState {
-        val isPower = effect == ClimateEffect.Action(ClimateAction.Power)
+    fun apply(state: ClimateState, action: ClimateAction, codec: ClimateCodec, nowMs: Long = System.currentTimeMillis()): ClimateState {
         // WK2: the system wakes on any control press after N=16 switched it off.
-        val s = if (state.power == false && !isPower) state.copy(power = true) else state
-        val next = when (effect) {
-            is ClimateEffect.SetMode -> setMode(s, effect.mode)
-            is ClimateEffect.Action -> action(s, effect.action, codec)
-        }
-        return next.copy(lastUpdateMs = nowMs)
+        val s = if (state.power == false && action != ClimateAction.Power) state.copy(power = true) else state
+        return action(s, action, codec).copy(lastUpdateMs = nowMs)
     }
 
     private fun action(s: ClimateState, a: ClimateAction, codec: ClimateCodec): ClimateState = when (a) {
         ClimateAction.Power -> s.copy(power = s.power != true)
         ClimateAction.ToggleAuto ->
             if (s.auto == true) exitAuto(s)
-            else s.copy(auto = true, ac = true, fanSpeed = null, mode = AirMode.UNKNOWN, maxAc = false, frontDefrost = false)
+            else s.withMode(AirMode.AUTO).copy(auto = true, ac = true, fanSpeed = null, fanAuto = true, maxAc = false, frontDefrost = false)
         ClimateAction.ToggleAc -> s.copy(ac = s.ac != true)
         ClimateAction.ToggleMaxAc ->
             // UNVERIFIED: turning MAX off only clears the flag; the WK2 needs several rounds to unwind.
             if (s.maxAc == true) s.copy(maxAc = false)
-            else s.copy(
+            else s.withMode(AirMode.FACE).copy(
                 maxAc = true, frontDefrost = false, ac = true, recirculate = true, auto = false,
-                fanSpeed = codec.fanMax, mode = AirMode.FACE,
+                fanSpeed = codec.fanMax, fanAuto = false,
                 driverTemp = LO, passengerTemp = LO,
             )
         ClimateAction.ToggleFrontDefrost ->
             if (s.frontDefrost == true) s.copy(frontDefrost = false)
-            else s.copy(frontDefrost = true, maxAc = false, recirculate = true, auto = false, fanSpeed = 6, mode = AirMode.UNKNOWN)
+            else s.copy(
+                frontDefrost = true, maxAc = false, recirculate = true, auto = false, fanSpeed = 6, fanAuto = false,
+                airWindshield = true, airFace = true, airFeet = false,
+            )
         ClimateAction.ToggleDual -> s.copy(dual = s.dual != true)
         ClimateAction.ToggleRecirculate -> s.copy(recirculate = s.recirculate != true)
         ClimateAction.ToggleRearDefrost -> s.copy(rearDefrost = s.rearDefrost != true)
-        ClimateAction.FanUp -> if (s.auto == true) exitAuto(s) else s.copy(fanSpeed = ((s.fanSpeed ?: 0) + 1).coerceAtMost(codec.fanMax))
-        ClimateAction.FanDown -> if (s.auto == true) exitAuto(s) else s.copy(fanSpeed = ((s.fanSpeed ?: 0) - 1).coerceAtLeast(0))
-        ClimateAction.CycleMode -> setMode(s, FytAirflow.nextInCycle(s.mode))
+        ClimateAction.FanUp -> if (isAutoFan(s)) exitAuto(s) else s.copy(fanSpeed = ((s.fanSpeed ?: 0) + 1).coerceAtMost(codec.fanMax))
+        ClimateAction.FanDown -> if (isAutoFan(s)) exitAuto(s) else s.copy(fanSpeed = ((s.fanSpeed ?: 0) - 1).coerceAtLeast(0))
+        ClimateAction.CycleMode -> setMode(s, FytAirflow.next(s.mode, codec.settableModes))
+        is ClimateAction.SetMode -> if (a.mode in codec.settableModes) setMode(s, a.mode) else s
         is ClimateAction.TempUp -> stepTemp(s, a.zone, +1, codec)
         is ClimateAction.TempDown -> stepTemp(s, a.zone, -1, codec)
         is ClimateAction.CycleSeatHeat -> cycleSeat(s, a.zone, heat = true, codec)
@@ -72,13 +64,15 @@ object ClimateSimulation {
 
     private val LO = Setpoint(sentinel = Setpoint.Sentinel.LO)
 
-    private fun exitAuto(s: ClimateState) = s.copy(auto = false, fanSpeed = 3, mode = AirMode.FACE)
+    private fun isAutoFan(s: ClimateState) = s.auto == true || s.fanAuto == true
 
-    /** UNVERIFIED: choosing airflow manually cancels AUTO; the fan keeps 3 if AUTO owned it. */
-    private fun setMode(s: ClimateState, mode: AirMode) = s.copy(
-        mode = mode,
+    private fun exitAuto(s: ClimateState) = s.withMode(AirMode.FACE).copy(auto = false, fanSpeed = 3, fanAuto = false)
+
+    /** UNVERIFIED: choosing airflow manually cancels AUTO; the fan lands on 3 if AUTO owned it. */
+    private fun setMode(s: ClimateState, mode: AirMode) = s.withMode(mode).copy(
         auto = if (s.auto == true) false else s.auto,
-        fanSpeed = s.fanSpeed ?: if (s.auto == true) 3 else null,
+        fanSpeed = if (isAutoFan(s)) s.fanSpeed ?: 3 else s.fanSpeed,
+        fanAuto = if (s.fanAuto == true) false else s.fanAuto,
         frontDefrost = if (s.frontDefrost == true) false else s.frontDefrost,
     )
 
@@ -108,11 +102,11 @@ object ClimateSimulation {
         }
     }
 
-    /** WK2 snapshot from `wk2-climate` VEHICLE_BASELINE: AUTO on, 68 F both zones, DUAL lit. */
+    /** WK2 snapshot from `wk2-climate` VEHICLE_BASELINE: AUTO on (fan and airflow), 68 F both zones, DUAL lit. */
     fun baseline(): ClimateState = ClimateState(
         power = true, auto = true, ac = true, maxAc = false, dual = true, recirculate = false,
-        rearDefrost = false, frontDefrost = false, fanSpeed = null, mode = AirMode.UNKNOWN,
+        rearDefrost = false, frontDefrost = false, fanSpeed = null, fanAuto = true,
         driverTemp = FytTemperature.ofF(68), passengerTemp = FytTemperature.ofF(68),
         driverSeatHeat = 0, passengerSeatHeat = 0, driverSeatCool = 0, passengerSeatCool = 0,
-    )
+    ).withMode(AirMode.AUTO)
 }

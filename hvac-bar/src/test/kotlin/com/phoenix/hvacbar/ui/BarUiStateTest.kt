@@ -4,6 +4,8 @@ import com.google.common.truth.Truth.assertThat
 import com.phoenix.fytipc.ConnectionState
 import com.phoenix.fytipc.ModuleUpdate
 import com.phoenix.fytipc.Modules
+import com.phoenix.fytipc.climate.AirMode
+import com.phoenix.fytipc.climate.ClimateAction
 import com.phoenix.fytipc.climate.ClimateState
 import com.phoenix.fytipc.climate.Setpoint
 import com.phoenix.fytipc.profile.FordF150Profile
@@ -28,6 +30,7 @@ class BarUiStateTest {
         assertThat(ui.passengerTemp).isEqualTo(TempText("--", null))
         assertThat(ui.mode).isEqualTo("--")
         assertThat(ui.fanSegments).isNull()
+        assertThat(ui.fanAuto).isFalse()
         assertThat(listOf(ui.power, ui.auto, ui.ac, ui.dual, ui.recirculate, ui.rearDefrost, ui.frontDefrost))
             .containsExactly(Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN)
         assertThat(ui.driverSeatHeat.lamp).isEqualTo(Lamp.UNKNOWN)
@@ -84,6 +87,41 @@ class BarUiStateTest {
         assertThat(fanSegments(9, 7)).isEqualTo(7)
         assertThat(fanSegments(4, 8)).isEqualTo(4)
         assertThat(fanSegments(2, 0)).isEqualTo(0)
+    }
+
+    @Test
+    fun fanCode15RendersAutoInsteadOfSegments() {
+        val auto = barUiState(reduced(codes.U_AIR_WIND_LEVEL to 15), ConnectionState.CONNECTED, useCelsius = false)
+        assertThat(auto.fanAuto).isTrue()
+        assertThat(auto.fanSegments).isNull()
+
+        val manual = barUiState(reduced(codes.U_AIR_WIND_LEVEL to 15, codes.U_AIR_WIND_LEVEL to 4), ConnectionState.CONNECTED, useCelsius = false)
+        assertThat(manual.fanAuto).isFalse()
+        assertThat(manual.fanSegments).isEqualTo(4)
+
+        assertThat(barUiState(BarSamples.fullAuto, ConnectionState.CONNECTED, useCelsius = false).fanAuto).isTrue()
+    }
+
+    @Test
+    fun modeButtonShowsTheModeDerivedFromTheAirflowFlags() {
+        fun shown(up: Int, body: Int, foot: Int) = barUiState(
+            reduced(codes.U_AIR_BLOW_UP_LEFT to up, codes.U_AIR_BLOW_BODY_LEFT to body, codes.U_AIR_BLOW_FOOT_LEFT to foot),
+            ConnectionState.CONNECTED,
+            useCelsius = false,
+        ).mode
+        assertThat(shown(0, 1, 0)).isEqualTo("FACE")
+        assertThat(shown(0, 1, 1)).isEqualTo("FACE+FEET")
+        assertThat(shown(0, 0, 1)).isEqualTo("FEET")
+        assertThat(shown(1, 0, 1)).isEqualTo("FEET+DEF")
+        assertThat(shown(1, 0, 0)).isEqualTo("DEF")
+        assertThat(shown(0, 0, 0)).isEqualTo("AUTO")
+        assertThat(shown(1, 1, 0)).isEqualTo("--")
+        assertThat(AirMode.entries.map(::modeText).toSet()).hasSize(AirMode.entries.size)
+    }
+
+    @Test
+    fun modeButtonCyclesTheMode() {
+        assertThat(BarControl.MODE.action).isEqualTo(ClimateAction.CycleMode)
     }
 
     @Test

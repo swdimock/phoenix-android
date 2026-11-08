@@ -14,6 +14,7 @@ object ClimateActions {
         add(ClimateAction.FanUp)
         add(ClimateAction.FanDown)
         add(ClimateAction.CycleMode)
+        AirMode.entries.forEach { add(ClimateAction.SetMode(it)) }
         for (zone in Zone.entries) {
             add(ClimateAction.TempUp(zone))
             add(ClimateAction.TempDown(zone))

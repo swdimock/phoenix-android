@@ -3,6 +3,7 @@ package com.phoenix.fytipc.binder
 import android.app.Application
 import android.content.ComponentName
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Looper
 import com.google.common.truth.Truth.assertThat
 import com.phoenix.fytipc.ConnectionState
@@ -21,6 +22,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
+import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 
 @RunWith(RobolectricTestRunner::class)
@@ -38,6 +40,17 @@ class BinderFytToolkitTest {
         shadowOf(app).setComponentNameAndServiceForBindServiceForIntent(
             Intent(SyuBinder.SERVICE_ACTION).setPackage(SyuBinder.SERVICE_PACKAGE), component, fake,
         )
+        installService()
+    }
+
+    private fun installService() {
+        val pm = shadowOf(app.packageManager)
+        pm.addServiceIfNotPresent(component)
+        pm.addIntentFilterForService(component, IntentFilter(SyuBinder.SERVICE_ACTION))
+    }
+
+    private fun uninstallService() {
+        shadowOf(app.packageManager).removePackage(SyuBinder.SERVICE_PACKAGE)
     }
 
     @After
@@ -164,6 +177,56 @@ class BinderFytToolkitTest {
         assertThrows(FytTimeoutException::class.java) {
             runBlocking { t.canbus.cmd(6, intArrayOf(1, 1)) }
         }
-        Unit
+        // Still unavailable after the fast backoff window: only the slow retry is pending.
+        idleFor(BinderFytToolkit.BACKOFF_BASE_MS * 4)
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.UNAVAILABLE)
     }
+
+    @Test
+    fun `missing service package is unavailable without binding, and installing it later recovers`() {
+        uninstallService()
+        val t = toolkit()
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.UNAVAILABLE)
+        idleMain()
+        assertThat(shadowOf(app).boundServiceConnections).isEmpty()
+
+        idleFor(BinderFytToolkit.UNAVAILABLE_RETRY_MS)
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.UNAVAILABLE)
+
+        installService()
+        idleFor(BinderFytToolkit.UNAVAILABLE_RETRY_MS)
+        idleMain()
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.CONNECTED)
+    }
+
+    @Test
+    fun `binding that dies with the package gone is unavailable, then recovers on reinstall`() {
+        val t = toolkit()
+        idleMain()
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.CONNECTED)
+
+        uninstallService()
+        shadowOf(app).boundServiceConnections.last().onBindingDied(component)
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.UNAVAILABLE)
+        idleFor(BinderFytToolkit.BACKOFF_MAX_MS - 1)
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.UNAVAILABLE)
+
+        installService()
+        idleFor(BinderFytToolkit.UNAVAILABLE_RETRY_MS)
+        idleMain()
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.CONNECTED)
+    }
+
+    @Test
+    fun `binding that dies while installed reconnects with backoff`() {
+        val t = toolkit()
+        idleMain()
+        shadowOf(app).boundServiceConnections.last().onBindingDied(component)
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.CONNECTING)
+        idleFor(BinderFytToolkit.BACKOFF_BASE_MS)
+        idleMain()
+        assertThat(t.connectionState.value).isEqualTo(ConnectionState.CONNECTED)
+    }
+
+    private fun idleFor(ms: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
 }

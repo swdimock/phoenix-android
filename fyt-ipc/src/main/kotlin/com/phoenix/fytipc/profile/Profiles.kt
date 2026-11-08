@@ -4,6 +4,7 @@ import com.phoenix.fytipc.CanbusCodes
 import com.phoenix.fytipc.ModuleCommand
 import com.phoenix.fytipc.ModuleUpdate
 import com.phoenix.fytipc.Modules
+import com.phoenix.fytipc.climate.AirMode
 import com.phoenix.fytipc.climate.ClimateAction
 import com.phoenix.fytipc.climate.ClimateState
 
@@ -43,10 +44,6 @@ object Wk2ReferenceProfile : VehicleProfile, ClimateCodec {
         const val U_AIR_FRONT_DEFROST = 65
         const val U_AIR_HOT_STEER = 66          // heated steering wheel
         const val U_CANBUS_ID = 1000            // packed: low 16 = protocol base, high 16 = variant
-
-        /** There is no airflow enum code on FYT; airflow is the three BLOW flags. */
-        @Deprecated("Airflow is U_AIR_BLOW_UP/BODY/FOOT_LEFT; this is U_AIR_BLOW_MODE_LEFT, unused on WK2")
-        const val U_AIR_MODE = 77
     }
 
     /** Fan value reported while AUTO owns the blower. Never a speed. */
@@ -83,15 +80,23 @@ object Wk2ReferenceProfile : VehicleProfile, ClimateCodec {
         const val SEAT_COOL_LEFT = 22    // cycles (order assumed same as heat; UNVERIFIED)
         const val SEAT_COOL_RIGHT = 23
         const val HEATED_WHEEL = 24      // toggle
-
-        /** There is no cycle command; [ClimateAction.CycleMode] maps to the next idempotent setter. */
-        @Deprecated("No cycle index exists; use AIRFLOW_* setters", ReplaceWith("AIRFLOW_FACE"))
-        const val MODE = AIRFLOW_FACE
     }
+
+    /**
+     * Idempotent airflow setters in OEM cycle order (wiki page 5). There is no cycle command:
+     * [ClimateAction.CycleMode] sends the setter for the next entry, [ClimateAction.SetMode] its own.
+     */
+    val airflowSetters: Map<AirMode, Int> = linkedMapOf(
+        AirMode.FACE to CmdIndex.AIRFLOW_FACE,
+        AirMode.FACE_FEET to CmdIndex.AIRFLOW_FACE_FEET,
+        AirMode.FEET to CmdIndex.AIRFLOW_FEET,
+        AirMode.FEET_DEFROST to CmdIndex.AIRFLOW_FEET_DEFROST,
+    )
 
     override val tempRangeF: IntRange = 60..84    // WK2 driver setpoint measured 60..84
     override val fanMax: Int = 7
     override val seatLevelCycle: List<Int> = listOf(0, 3, 1)
+    override val settableModes: List<AirMode> = airflowSetters.keys.toList()
 
     override val climateReadCodes: Set<Int> = setOf(
         Codes.U_AIR_POWER, Codes.U_AIR_AC, Codes.U_AIR_CYCLE, Codes.U_AIR_AUTO, Codes.U_AIR_REAR_DEFROST,

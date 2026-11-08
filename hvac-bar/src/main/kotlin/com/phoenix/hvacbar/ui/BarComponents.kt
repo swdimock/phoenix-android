@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -193,10 +194,14 @@ internal fun RowScope.TempControl(
     StepButton(Icons.Filled.Add, "temperature up", enabled, onUp, Modifier.weight(weight))
 }
 
-/** Minus / segmented bar graph / plus group for the blower. */
+/**
+ * Minus / segmented bar graph / plus group for the blower. Under AUTO control every segment is
+ * drawn dimmed behind an AUTO label; an unknown speed shows dark segments behind "--".
+ */
 @Composable
 internal fun RowScope.FanControl(
     segments: Int?,
+    auto: Boolean,
     enabled: Boolean,
     onDown: () -> Unit,
     onUp: () -> Unit,
@@ -210,13 +215,20 @@ internal fun RowScope.FanControl(
             .padding(horizontal = 10.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        FanGraph(segments, Modifier.fillMaxSize())
-        if (segments == null) {
-            Text(BarUiState.UNKNOWN_TEXT, color = BarColors.textUnknown, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        if (auto) {
+            FanGraph(BarUiState.FAN_SEGMENTS, Modifier.fillMaxSize().alpha(AUTO_FAN_ALPHA))
+            Text(BarUiState.AUTO_TEXT, color = BarColors.text, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        } else {
+            FanGraph(segments, Modifier.fillMaxSize())
+            if (segments == null) {
+                Text(BarUiState.UNKNOWN_TEXT, color = BarColors.textUnknown, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
     StepButton(Icons.Filled.Add, "fan up", enabled, onUp, Modifier.weight(weight))
 }
+
+private const val AUTO_FAN_ALPHA = 0.25f
 
 @Composable
 private fun FanGraph(segments: Int?, modifier: Modifier) {

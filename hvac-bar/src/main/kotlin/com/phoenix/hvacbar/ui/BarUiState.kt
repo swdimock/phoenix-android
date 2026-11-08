@@ -40,11 +40,14 @@ data class BarUiState(
     val maxAc: Lamp,
     val frontDefrost: Lamp,
     val recirculate: Lamp,
+    /** Derived airflow mode name shown on the MODE button. */
     val mode: String,
     val driverTemp: TempText,
     val passengerTemp: TempText,
-    /** Lit fan segments out of [FAN_SEGMENTS]; null when unknown. */
+    /** Lit fan segments out of [FAN_SEGMENTS]; null when unknown or under AUTO control. */
     val fanSegments: Int?,
+    /** The blower is under AUTO control: segments are dimmed and labelled [AUTO_TEXT]. */
+    val fanAuto: Boolean,
     val driverSeatHeat: SeatUi,
     val driverSeatCool: SeatUi,
     val passengerSeatHeat: SeatUi,
@@ -54,6 +57,7 @@ data class BarUiState(
         const val FAN_SEGMENTS = 7
         const val SEAT_LEVELS = 3
         const val UNKNOWN_TEXT = "--"
+        const val AUTO_TEXT = "AUTO"
     }
 }
 
@@ -72,7 +76,8 @@ fun barUiState(climate: ClimateState, connection: ConnectionState, useCelsius: B
         mode = modeText(climate.mode),
         driverTemp = tempText(climate.driverTemp, useCelsius),
         passengerTemp = tempText(climate.passengerTemp, useCelsius),
-        fanSegments = fanSegments(climate.fanSpeed, climate.fanMax),
+        fanSegments = if (climate.fanAuto == true) null else fanSegments(climate.fanSpeed, climate.fanMax),
+        fanAuto = climate.fanAuto == true,
         driverSeatHeat = SeatUi(climate.driverSeatHeat),
         driverSeatCool = SeatUi(climate.driverSeatCool),
         passengerSeatHeat = SeatUi(climate.passengerSeatHeat),
@@ -81,10 +86,11 @@ fun barUiState(climate: ClimateState, connection: ConnectionState, useCelsius: B
 
 internal fun modeText(mode: AirMode): String = when (mode) {
     AirMode.FACE -> "FACE"
-    AirMode.FACE_FEET -> "FACE/FEET"
+    AirMode.FACE_FEET -> "FACE+FEET"
     AirMode.FEET -> "FEET"
-    AirMode.FEET_DEFROST -> "FEET/DEF"
+    AirMode.FEET_DEFROST -> "FEET+DEF"
     AirMode.DEFROST -> "DEF"
+    AirMode.AUTO -> BarUiState.AUTO_TEXT
     AirMode.UNKNOWN -> BarUiState.UNKNOWN_TEXT
 }
 

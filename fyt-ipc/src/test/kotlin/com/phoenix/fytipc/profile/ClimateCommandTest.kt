@@ -14,7 +14,7 @@ class ClimateCommandTest {
 
     private fun cmd(index: Int) = ModuleCommand(Modules.CANBUS, 6, intArrayOf(1, index))
 
-    private val expected: Map<ClimateAction, Int> = mapOf(
+    private val expected: Map<ClimateAction, Int?> = mapOf(
         ClimateAction.ToggleAc to 1,
         ClimateAction.ToggleAuto to 2,
         ClimateAction.ToggleRecirculate to 3,
@@ -33,6 +33,14 @@ class ClimateCommandTest {
         ClimateAction.TempDown(Zone.PASSENGER) to 21,
         ClimateAction.CycleSeatCool(Zone.DRIVER) to 22,
         ClimateAction.CycleSeatCool(Zone.PASSENGER) to 23,
+        ClimateAction.SetMode(AirMode.FACE) to 8,
+        ClimateAction.SetMode(AirMode.FACE_FEET) to 9,
+        ClimateAction.SetMode(AirMode.FEET) to 10,
+        ClimateAction.SetMode(AirMode.FEET_DEFROST) to 11,
+        // No direct setter: windshield-only is the front-defrost macro, AUTO is the AUTO toggle.
+        ClimateAction.SetMode(AirMode.DEFROST) to null,
+        ClimateAction.SetMode(AirMode.AUTO) to null,
+        ClimateAction.SetMode(AirMode.UNKNOWN) to null,
     )
 
     @Test
@@ -40,23 +48,57 @@ class ClimateCommandTest {
         for (profile in VehicleProfiles.all) {
             for (action in ClimateActions.all) {
                 if (action == ClimateAction.CycleMode) continue
-                val index = expected[action] ?: error("no expectation for $action")
-                assertThat(profile.command(action, ClimateState.EMPTY)).isEqualTo(cmd(index))
+                check(action in expected) { "no expectation for $action" }
+                assertThat(profile.command(action, ClimateState.EMPTY)).isEqualTo(expected[action]?.let(::cmd))
             }
         }
         assertThat(ClimateActions.all.toSet()).isEqualTo(expected.keys + ClimateAction.CycleMode)
     }
 
     @Test
-    fun `cycle mode picks the next idempotent airflow setter`() {
-        val p = VehicleProfiles.default
-        fun next(m: AirMode) = p.command(ClimateAction.CycleMode, ClimateState(mode = m))
-        assertThat(next(AirMode.FACE)).isEqualTo(cmd(9))
-        assertThat(next(AirMode.FACE_FEET)).isEqualTo(cmd(10))
-        assertThat(next(AirMode.FEET)).isEqualTo(cmd(11))
-        assertThat(next(AirMode.FEET_DEFROST)).isEqualTo(cmd(8))
-        assertThat(next(AirMode.UNKNOWN)).isEqualTo(cmd(8))
-        assertThat(next(AirMode.DEFROST)).isEqualTo(cmd(8))
+    fun `cycle mode sends the setter of the next settable mode`() {
+        for (p in VehicleProfiles.all) {
+            fun next(m: AirMode) = p.command(ClimateAction.CycleMode, ClimateState().withMode(m))
+            assertThat(next(AirMode.FACE)).isEqualTo(cmd(9))
+            assertThat(next(AirMode.FACE_FEET)).isEqualTo(cmd(10))
+            assertThat(next(AirMode.FEET)).isEqualTo(cmd(11))
+            assertThat(next(AirMode.FEET_DEFROST)).isEqualTo(cmd(8))
+            assertThat(next(AirMode.UNKNOWN)).isEqualTo(cmd(8))
+            assertThat(next(AirMode.DEFROST)).isEqualTo(cmd(8))
+            assertThat(next(AirMode.AUTO)).isEqualTo(cmd(8))
+        }
+    }
+
+    @Test
+    fun `cycle mode and set mode share one table`() {
+        val codec = FordF150Profile as ClimateCodec
+        assertThat(codec.settableModes)
+            .containsExactly(AirMode.FACE, AirMode.FACE_FEET, AirMode.FEET, AirMode.FEET_DEFROST).inOrder()
+        for (m in AirMode.entries) {
+            val target = FytAirflow.next(m, codec.settableModes)
+            val state = ClimateState().withMode(m)
+            assertThat(FordF150Profile.command(ClimateAction.CycleMode, state))
+                .isEqualTo(FordF150Profile.command(ClimateAction.SetMode(target), state))
+        }
+    }
+
+    @Test
+    fun `mode is derived from the three airflow flags`() {
+        fun mode(w: Boolean?, f: Boolean?, ft: Boolean?) =
+            ClimateState(airWindshield = w, airFace = f, airFeet = ft).mode
+        assertThat(mode(null, null, null)).isEqualTo(AirMode.UNKNOWN)
+        assertThat(mode(true, false, false)).isEqualTo(AirMode.DEFROST)
+        assertThat(mode(false, true, false)).isEqualTo(AirMode.FACE)
+        assertThat(mode(false, true, true)).isEqualTo(AirMode.FACE_FEET)
+        assertThat(mode(false, false, true)).isEqualTo(AirMode.FEET)
+        assertThat(mode(true, false, true)).isEqualTo(AirMode.FEET_DEFROST)
+        assertThat(mode(false, false, false)).isEqualTo(AirMode.AUTO)
+        assertThat(mode(true, true, false)).isEqualTo(AirMode.UNKNOWN)
+        assertThat(mode(true, true, true)).isEqualTo(AirMode.UNKNOWN)
+        // Partially reported: unreported flags count as clear.
+        assertThat(mode(null, true, null)).isEqualTo(AirMode.FACE)
+        for (m in AirMode.entries) assertThat(ClimateState().withMode(m).mode).isEqualTo(m)
+        assertThat(ClimateState().withMode(AirMode.UNKNOWN)).isEqualTo(ClimateState())
     }
 
     @Test

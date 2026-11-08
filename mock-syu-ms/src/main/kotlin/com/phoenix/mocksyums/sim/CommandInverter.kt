@@ -5,37 +5,32 @@ import com.phoenix.fytipc.climate.AirMode
 import com.phoenix.fytipc.climate.ClimateAction
 import com.phoenix.fytipc.climate.ClimateActions
 import com.phoenix.fytipc.climate.ClimateState
-import com.phoenix.fytipc.profile.FytAirflow
 import com.phoenix.fytipc.profile.VehicleProfile
 
 /**
- * Inverts [VehicleProfile.command]: given a received `cmd()`, which climate effect does it name?
+ * Inverts [VehicleProfile.command]: given a received `cmd()`, which climate action does it name?
  *
- * Built once by evaluating the profile for every action. [ClimateAction.CycleMode] is evaluated
- * for every current [AirMode]: if the profile answers with a different command per mode (WK2:
- * idempotent setters 8..11), each one inverts to "set mode = next in cycle"; if it always answers
- * with the same command, that command is a true cycle button.
+ * Built once by evaluating the profile for every action, including [ClimateAction.SetMode] for every
+ * [AirMode]. [ClimateAction.CycleMode] is then evaluated for every current mode: if the profile always
+ * answers with the same command, that command is a true cycle button; otherwise (WK2: idempotent
+ * setters 8..11) each answer is already one of the SetMode commands and inverts to that.
  */
 class CommandInverter(profile: VehicleProfile) {
 
     private data class Key(val module: Int, val code: Int, val ints: List<Int>?)
 
-    private val table: Map<Key, ClimateEffect> = buildMap {
+    private val table: Map<Key, ClimateAction> = buildMap {
         for (action in ClimateActions.all) {
             if (action == ClimateAction.CycleMode) continue
-            profile.command(action, ClimateState.EMPTY)?.let { putIfAbsent(key(it), ClimateEffect.Action(action)) }
+            profile.command(action, ClimateState.EMPTY)?.let { putIfAbsent(key(it), action) }
         }
-        val perMode = AirMode.entries.mapNotNull { m ->
-            profile.command(ClimateAction.CycleMode, ClimateState(mode = m))?.let { m to key(it) }
+        val cycleKeys = AirMode.entries.mapNotNullTo(HashSet()) { m ->
+            profile.command(ClimateAction.CycleMode, ClimateState.EMPTY.withMode(m))?.let(::key)
         }
-        if (perMode.map { it.second }.toSet().size <= 1) {
-            perMode.firstOrNull()?.let { putIfAbsent(it.second, ClimateEffect.Action(ClimateAction.CycleMode)) }
-        } else {
-            for ((m, k) in perMode) putIfAbsent(k, ClimateEffect.SetMode(FytAirflow.nextInCycle(m)))
-        }
+        cycleKeys.singleOrNull()?.let { putIfAbsent(it, ClimateAction.CycleMode) }
     }
 
-    fun invert(command: ModuleCommand): ClimateEffect? = table[key(command)]
+    fun invert(command: ModuleCommand): ClimateAction? = table[key(command)]
 
     /** Number of distinct commands understood; for the debug screen. */
     val size: Int get() = table.size

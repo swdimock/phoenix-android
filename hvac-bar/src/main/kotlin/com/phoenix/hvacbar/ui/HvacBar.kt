@@ -100,6 +100,7 @@ private fun ControlRow(
         Box(Modifier.width(8.dp))
         FanControl(
             segments = state.fanSegments,
+            auto = state.fanAuto,
             enabled = enabled,
             onDown = { onControl(BarControl.FAN_DOWN) },
             onUp = { onControl(BarControl.FAN_UP) },

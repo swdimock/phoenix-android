@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -35,11 +36,14 @@ import java.util.concurrent.ConcurrentHashMap
  * descriptors and transaction ids are in [SyuBinder]).
  *
  * Binding starts in the constructor. Every bind attempt gets its own [ServiceConnection] so callbacks
- * from a superseded attempt are ignored. On disconnect, binding death, null binding or a failed
- * `bindService` the toolkit unbinds and rebinds with exponential backoff ([BACKOFF_BASE_MS] doubling
- * to [BACKOFF_MAX_MS]); if the system reconnects the existing binding first, the pending retry is
- * dropped. Each successful connection bumps a generation number; modules drop remote handles from
- * older generations and re-register their live subscriptions.
+ * from a superseded attempt are ignored. On disconnect or binding death while the service package is
+ * still installed, the toolkit is CONNECTING and rebinds with exponential backoff ([BACKOFF_BASE_MS]
+ * doubling to [BACKOFF_MAX_MS]); if the system reconnects the existing binding first, the pending
+ * retry is dropped. When the service is not there at all (the intent does not resolve, `bindService`
+ * returns false, a null binding, or the binding dies with the package gone) the toolkit is UNAVAILABLE
+ * and retries every [UNAVAILABLE_RETRY_MS], so installing the service later recovers on its own.
+ * Each successful connection bumps a generation number; modules drop remote handles from older
+ * generations and re-register their live subscriptions.
  *
  * Binder calls run on [ioDispatcher]. [module] handles are cached and usable before connection:
  * `cmd`/`get` suspend until connected and throw [FytTimeoutException] after [connectTimeoutMs];
@@ -121,10 +125,14 @@ internal class BinderFytToolkit(
             if (closed) return
             mainHandler.removeCallbacks(retry)
             unbindCurrentLocked()
+            val intent = Intent(SyuBinder.SERVICE_ACTION).setPackage(SyuBinder.SERVICE_PACKAGE)
+            if (!resolves(intent)) {
+                markUnavailableLocked("${SyuBinder.SERVICE_ACTION} does not resolve; is ${SyuBinder.SERVICE_PACKAGE} installed?")
+                return
+            }
             val conn = Connection(++generation)
             connection = conn
             _connectionState.value = ConnectionState.CONNECTING
-            val intent = Intent(SyuBinder.SERVICE_ACTION).setPackage(SyuBinder.SERVICE_PACKAGE)
             val ok = try {
                 context.bindService(intent, conn, Context.BIND_AUTO_CREATE)
             } catch (e: SecurityException) {
@@ -132,11 +140,32 @@ internal class BinderFytToolkit(
                 false
             }
             if (!ok) {
-                Log.w(TAG, "bindService(${SyuBinder.SERVICE_ACTION}) returned false; is ${SyuBinder.SERVICE_PACKAGE} installed?")
-                _connectionState.value = ConnectionState.UNAVAILABLE
-                scheduleRetryLocked()
+                unbindCurrentLocked()
+                markUnavailableLocked("bindService(${SyuBinder.SERVICE_ACTION}) returned false")
             }
         }
+    }
+
+    private fun resolves(intent: Intent): Boolean = servicePackageInstalled() &&
+        runCatching { context.packageManager.resolveService(intent, 0) != null }.getOrDefault(true)
+
+    private fun servicePackageInstalled(): Boolean = try {
+        context.packageManager.getPackageInfo(SyuBinder.SERVICE_PACKAGE, 0)
+        true
+    } catch (e: PackageManager.NameNotFoundException) {
+        false
+    }
+
+    /** The service is not there at all: report UNAVAILABLE and look again in [UNAVAILABLE_RETRY_MS]. */
+    private fun markUnavailableLocked(why: String) {
+        Log.w(TAG, why)
+        connected.value = null
+        _connectionState.value = ConnectionState.UNAVAILABLE
+        failures = 0
+        if (closed) return
+        mainHandler.removeCallbacks(retry)
+        mainHandler.postDelayed(retry, UNAVAILABLE_RETRY_MS)
+        Log.i(TAG, "unavailable; retrying in $UNAVAILABLE_RETRY_MS ms")
     }
 
     private fun unbindCurrentLocked() {
@@ -154,13 +183,24 @@ internal class BinderFytToolkit(
         Log.i(TAG, "rebind in $delay ms (attempt $failures)")
     }
 
-    private fun onLost(conn: Connection, state: ConnectionState, why: String) {
+    private fun onLost(conn: Connection, why: String) {
         synchronized(lock) {
             if (closed || connection !== conn) return
+            if (!servicePackageInstalled()) {
+                markUnavailableLocked("toolkit $why and ${SyuBinder.SERVICE_PACKAGE} is not installed")
+                return
+            }
             Log.w(TAG, "toolkit $why")
             connected.value = null
-            _connectionState.value = state
+            _connectionState.value = ConnectionState.CONNECTING
             scheduleRetryLocked()
+        }
+    }
+
+    private fun onUnavailable(conn: Connection, why: String) {
+        synchronized(lock) {
+            if (closed || connection !== conn) return
+            markUnavailableLocked("toolkit $why")
         }
     }
 
@@ -169,8 +209,7 @@ internal class BinderFytToolkit(
             synchronized(lock) {
                 if (closed || connection !== this) return
                 if (service == null) {
-                    _connectionState.value = ConnectionState.UNAVAILABLE
-                    scheduleRetryLocked()
+                    markUnavailableLocked("toolkit connected with a null binder")
                     return
                 }
                 mainHandler.removeCallbacks(retry)
@@ -184,14 +223,11 @@ internal class BinderFytToolkit(
             modules.values.forEach { it.onConnected() }
         }
 
-        override fun onServiceDisconnected(name: ComponentName?) =
-            onLost(this, ConnectionState.CONNECTING, "disconnected")
+        override fun onServiceDisconnected(name: ComponentName?) = onLost(this, "disconnected")
 
-        override fun onBindingDied(name: ComponentName?) =
-            onLost(this, ConnectionState.CONNECTING, "binding died")
+        override fun onBindingDied(name: ComponentName?) = onLost(this, "binding died")
 
-        override fun onNullBinding(name: ComponentName?) =
-            onLost(this, ConnectionState.UNAVAILABLE, "returned a null binding")
+        override fun onNullBinding(name: ComponentName?) = onUnavailable(this, "returned a null binding")
     }
 
     companion object {
@@ -199,6 +235,7 @@ internal class BinderFytToolkit(
         const val DEFAULT_CONNECT_TIMEOUT_MS = 10_000L
         const val BACKOFF_BASE_MS = 500L
         const val BACKOFF_MAX_MS = 30_000L
+        const val UNAVAILABLE_RETRY_MS = 30_000L
         private const val MAX_SHIFT = 6
     }
 }

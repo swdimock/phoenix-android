@@ -66,7 +66,7 @@ class RawFrameGenerator(
             (if (s.recirculate == true) 4 else 0) or (if (s.dual == true) 8 else 0)
         return McuFrame.of(
             0x7A,
-            s.fanSpeed ?: 0x0F,
+            if (s.fanAuto == true) 0x0F else s.fanSpeed ?: 0,
             (FytTemperature.encodeF(s.driverTemp) ?: 0) and 0xFF,
             (FytTemperature.encodeF(s.passengerTemp) ?: 0) and 0xFF,
             flags,

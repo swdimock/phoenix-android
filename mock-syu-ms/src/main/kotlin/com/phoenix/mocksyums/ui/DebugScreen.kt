@@ -80,10 +80,10 @@ fun DebugScreen(rt: MockRuntime) {
                     Button(onClick = { rt.vehicle.press(action) }) { Text(label) }
                 }
             }
-            Text("Fan: ${state.fanSpeed ?: if (state.auto == true) "AUTO" else "--"}")
+            Text("Fan: ${if (state.fanAuto == true) "AUTO" else state.fanSpeed ?: "--"}")
             Slider(
                 value = (state.fanSpeed ?: 0).toFloat(),
-                onValueChange = { v -> rt.vehicle.mutate { it.copy(fanSpeed = v.roundToInt(), auto = false) } },
+                onValueChange = { v -> rt.vehicle.mutate { it.copy(fanSpeed = v.roundToInt(), fanAuto = false, auto = false) } },
                 valueRange = 0f..state.fanMax.toFloat(),
                 steps = state.fanMax - 1,
             )
@@ -124,7 +124,8 @@ private fun TempSlider(label: String, shown: String, range: IntRange, onSet: (In
 private fun describe(s: ClimateState): String = buildString {
     appendLine("power=${s.power} auto=${s.auto} ac=${s.ac} maxAc=${s.maxAc} dual=${s.dual}")
     appendLine("recirc=${s.recirculate} frontDef=${s.frontDefrost} rearDef=${s.rearDefrost} mode=${s.mode}")
-    appendLine("temp L=${s.driverTemp.displayF()} R=${s.passengerTemp.displayF()} fan=${s.fanSpeed}")
+    appendLine("air windshield=${s.airWindshield} face=${s.airFace} feet=${s.airFeet}")
+    appendLine("temp L=${s.driverTemp.displayF()} R=${s.passengerTemp.displayF()} fan=${s.fanSpeed} fanAuto=${s.fanAuto}")
     append("seat heat L=${s.driverSeatHeat} R=${s.passengerSeatHeat}  cool L=${s.driverSeatCool} R=${s.passengerSeatCool}")
 }
 

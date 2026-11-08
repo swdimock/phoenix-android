@@ -31,15 +31,15 @@ class VehicleSimulator(
     /** Distinct commands the profile inversion understands. */
     val understoodCommands: Int get() = inverter.size
 
-    /** Handles a received `cmd()`; returns the effect it was recognised as, or null if ignored. */
-    fun onCommand(command: ModuleCommand): ClimateEffect? {
-        val effect = inverter.invert(command) ?: return null
-        update { ClimateSimulation.apply(it, effect, codec) }
-        return effect
+    /** Handles a received `cmd()`; returns the action it was recognised as, or null if ignored. */
+    fun onCommand(command: ModuleCommand): ClimateAction? {
+        val action = inverter.invert(command) ?: return null
+        press(action)
+        return action
     }
 
     /** A press on the vehicle's own controls (debug screen). */
-    fun press(action: ClimateAction) = update { ClimateSimulation.apply(it, ClimateEffect.Action(action), codec) }
+    fun press(action: ClimateAction) = update { ClimateSimulation.apply(it, action, codec) }
 
     /** Arbitrary vehicle-side change (debug sliders). */
     fun mutate(transform: (ClimateState) -> ClimateState) = update { transform(it).copy(lastUpdateMs = System.currentTimeMillis()) }

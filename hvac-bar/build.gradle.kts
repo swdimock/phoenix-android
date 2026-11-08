@@ -31,16 +31,6 @@ android {
     }
 }
 
-// androidx.core 1.15 (catalog coreKtx) requires compileSdk 35; 1.13.1 is the newest that builds against 34.
-configurations.configureEach {
-    resolutionStrategy.eachDependency {
-        if (requested.group == "androidx.core" && requested.name in setOf("core", "core-ktx")) {
-            useVersion("1.13.1")
-            because("compileSdk 34")
-        }
-    }
-}
-
 dependencies {
     implementation(project(":fyt-ipc"))
 
