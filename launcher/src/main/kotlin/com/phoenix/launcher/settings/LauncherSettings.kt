@@ -23,8 +23,12 @@ data class LauncherSettings(
         /** Open Headunit (applicationId kept from headunit-revived); our fork in ../open-headunit keeps it. */
         const val DEFAULT_AA_RECEIVER_PACKAGE = "com.andrerinas.headunitrevived"
 
-        /** The emulator's alias for the host PC, where `adb forward` exposes the phone's head unit server. */
-        const val DEFAULT_AA_TCP_HOST = "10.0.2.2"
+        /**
+         * Emulator loopback. `adb reverse tcp:5277 tcp:5277` (done by install-all.sh) maps it to the PC, where
+         * `adb forward` exposes the phone's head unit server. The emulator's NAT alias 10.0.2.2 timed out on
+         * Windows/WHPX, the adb reverse path works everywhere.
+         */
+        const val DEFAULT_AA_TCP_HOST = "127.0.0.1"
 
         /** Android Auto's developer "head unit server" port. */
         const val DEFAULT_AA_TCP_PORT = 5277

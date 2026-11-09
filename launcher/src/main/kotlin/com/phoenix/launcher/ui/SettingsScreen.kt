@@ -134,7 +134,7 @@ private fun AaTransportSection(settings: LauncherSettings, actions: SettingsActi
             val changed = host.trim() != settings.aaTcpHost || port != settings.aaTcpPort.toString()
             BigButton("Save", { actions.setAaTcpEndpoint(host, port.toIntOrNull() ?: 0) }, Modifier.fillMaxWidth(), enabled = changed)
         }
-        Hint("TCP uses the phone's Android Auto \"head unit server\" through adb forward (emulator: 10.0.2.2:5277). USB is for the head unit. Applies on next Open Android Auto.")
+        Hint("TCP uses the phone's Android Auto \"head unit server\" through adb reverse + forward (emulator: 127.0.0.1:5277). USB is for the head unit. Applies on next Open Android Auto.")
     }
 }
 

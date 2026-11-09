@@ -24,6 +24,11 @@ if [ -f "$RECEIVER_APK" ]; then
   adb shell appops set "$RECEIVER_PKG" SYSTEM_ALERT_WINDOW allow || true
   adb shell dumpsys deviceidle whitelist +"$RECEIVER_PKG" >/dev/null 2>&1 || true
   echo "Installed AA receiver ($RECEIVER_PKG)"
+  # Emulator only: make the receiver's 127.0.0.1:5277 reach the PC, where `adb -s <phone> forward tcp:5277 tcp:5277`
+  # exposes the phone's head unit server (see docs/ANDROID-AUTO-EMULATOR.md). Survives until the emulator restarts.
+  if adb get-serialno | grep -q '^emulator-'; then
+    adb reverse tcp:5277 tcp:5277 >/dev/null && echo "adb reverse tcp:5277 -> PC set (TCP Android Auto)"
+  fi
 else
   echo "No $RECEIVER_APK (run scripts/build-receiver.sh); the AA pane will show the not-installed placeholder"
 fi

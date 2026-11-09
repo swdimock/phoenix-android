@@ -9,10 +9,10 @@ class AaLaunchTest {
 
     @Test
     fun tcpExtras_carryHostPortAndBarInset() {
-        val extras = AaLaunchExtras.from(LauncherSettings(aaTransport = AaTransport.TCP, aaTcpHost = "10.0.2.2", aaTcpPort = 5277))
+        val extras = AaLaunchExtras.from(LauncherSettings(aaTransport = AaTransport.TCP, aaTcpHost = "127.0.0.1", aaTcpPort = 5277))
         assertThat(extras).containsExactly(
             "phoenix.transport", "tcp",
-            "phoenix.host", "10.0.2.2",
+            "phoenix.host", "127.0.0.1",
             "phoenix.port", 5277,
             "phoenix.inset_bottom", 227,
         )
@@ -26,7 +26,7 @@ class AaLaunchTest {
 
     @Test
     fun describe() {
-        assertThat(AaLaunchExtras.describe(LauncherSettings(aaTransport = AaTransport.TCP))).isEqualTo("TCP 10.0.2.2:5277")
+        assertThat(AaLaunchExtras.describe(LauncherSettings(aaTransport = AaTransport.TCP))).isEqualTo("TCP 127.0.0.1:5277")
         assertThat(AaLaunchExtras.describe(LauncherSettings(aaTransport = AaTransport.USB))).isEqualTo("USB")
     }
 

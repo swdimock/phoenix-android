@@ -63,7 +63,7 @@ object AaLaunchExtras {
         put(EXTRA_INSET_BOTTOM, HVAC_BAR_HEIGHT_PX)
     }
 
-    /** "TCP 10.0.2.2:5277" or "USB", for the AA pane. */
+    /** "TCP 127.0.0.1:5277" or "USB", for the AA pane. */
     fun describe(settings: LauncherSettings): String = when (settings.aaTransport) {
         AaTransport.TCP -> "TCP ${settings.aaTcpHost}:${settings.aaTcpPort}"
         AaTransport.USB -> "USB"

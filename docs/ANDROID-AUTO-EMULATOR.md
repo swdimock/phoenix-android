@@ -4,10 +4,12 @@ The emulator has no USB phone, so the receiver (our Open Headunit fork, `com.and
 to the Android Auto app on your phone over TCP, using Android Auto's developer **head unit server** on port
 5277. The chain is:
 
-    receiver in emulator --TCP--> 10.0.2.2:5277 (= the PC) --adb forward--> phone:5277 (head unit server)
+    receiver in emulator --TCP--> 127.0.0.1:5277 --adb reverse--> PC 127.0.0.1:5277 --adb forward--> phone:5277 (head unit server)
 
-`10.0.2.2` is the emulator's fixed alias for the host PC's loopback. On the real head unit the transport is
-USB and none of this applies.
+Both hops are adb port mappings: `adb reverse` on the emulator (done by `install-all.sh`) and `adb forward` on
+the phone (done per session, below). We deliberately do **not** use the emulator's NAT alias `10.0.2.2`: on
+Windows/WHPX the guest-side connect timed out on every attempt even though the PC accepted it. On the real
+head unit the transport is USB and none of this applies.
 
 ## One-time setup
 
@@ -18,7 +20,10 @@ USB and none of this applies.
    Android Auto* (or search for "Android Auto" in Settings).
 3. Scroll to the bottom and tap **Version** about 10 times until "Allow development settings?" appears; accept.
 4. Enable **USB debugging**: *Settings > About phone*, tap *Build number* 7 times, then
-   *Settings > System > Developer options > USB debugging* on.
+   *Settings > System > Developer options > USB debugging* on. Then **unplug and replug** the cable: the
+   phone only re-enumerates with the ADB interface on reconnect (until then Windows sees it as media-only,
+   USB PID `4EE1`, and the "Allow USB debugging?" prompt never appears). Accept that prompt with
+   "Always allow from this computer".
 
 ### PC / emulator
 
@@ -28,8 +33,13 @@ bash scripts/build-receiver.sh                 # builds ../open-headunit (branch
 ANDROID_SERIAL=emulator-5554 bash scripts/install-all.sh   # installs everything incl. the receiver
 ```
 
-In the launcher, *Settings > Android Auto transport* should show **TCP** with `10.0.2.2` / `5277`
-(this is the default on the emulator; USB is the default on real hardware).
+In the launcher, *Settings > Android Auto transport* should show **TCP** with `127.0.0.1` / `5277`
+(this is the default on the emulator; USB is the default on real hardware). `install-all.sh` also runs
+`adb reverse tcp:5277 tcp:5277` on the emulator; after an emulator restart without reinstalling, run it again:
+
+```bash
+adb -s emulator-5554 reverse tcp:5277 tcp:5277
+```
 
 ## Every session
 
@@ -41,7 +51,9 @@ In the launcher, *Settings > Android Auto transport* should show **TCP** with `1
    ```
 
 3. On the phone: Android Auto settings > three-dot menu (top right) > **Start head unit server**.
-   A notification "Head unit server running" appears.
+   A notification "Head unit server running" appears. **Then leave the phone on that screen, unlocked,
+   screen on.** Navigating around inside Android Auto's settings (e.g. "Connect a car") stops the server
+   within seconds; the emulator then shows "reconnecting". The first-run prompts appear on their own.
 4. Forward the port. The forward is created on the PC side for the **phone** serial:
 
    ```bash
@@ -50,9 +62,8 @@ In the launcher, *Settings > Android Auto transport* should show **TCP** with `1
    ```
 
 5. Open the launcher's Android Auto pane and tap **Open Android Auto** (on a fresh launcher start it opens by
-   itself once the audio path is ready). The receiver connects to `10.0.2.2:5277`, retrying 5 s after each failed attempt (about every 10 s on the
-   emulator, where a refused connection takes ~5 s to surface through its NAT), and
-   shows "Android Auto: waiting for phone at 10.0.2.2:5277 (attempt N ...)" until the phone answers.
+   itself once the audio path is ready). The receiver connects to `127.0.0.1:5277`, retrying 5 s after each
+   failed attempt, and shows "Android Auto: waiting for phone at 127.0.0.1:5277 (attempt N ...)" until the phone answers.
    Accept any prompt on the phone; the projection then fills the screen above the 227 px climate bar.
 6. The round button at the top-left of the receiver goes back to the launcher (system HOME). The receiver
    stops retrying while it is in the background; tap **Open Android Auto** to resume.
@@ -61,16 +72,24 @@ Manual launch without the launcher (same extras the launcher sends):
 
 ```bash
 adb -s emulator-5554 shell am start -n com.andrerinas.headunitrevived/com.andrerinas.openheadunit.main.MainActivity \
-  --es phoenix.transport tcp --es phoenix.host 10.0.2.2 --ei phoenix.port 5277 --ei phoenix.inset_bottom 227
+  --es phoenix.transport tcp --es phoenix.host 127.0.0.1 --ei phoenix.port 5277 --ei phoenix.inset_bottom 227
 ```
 
 ![Receiver waiting for the phone](screenshots/aa-receiver-waiting.png)
+
+First live session (Pixel 10 Pro XL over the TCP head unit server), with the climate bar over the projection:
+
+![Android Auto live in the emulator](screenshots/aa-live-emulator.png)
+
+The emulator decodes with `c2.goldfish.h264.decoder` (software) and manages only ~3-12 fps; that is an
+emulator limitation, the head unit has a hardware decoder.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 | --- | --- |
-| Receiver keeps saying "waiting", logcat shows `ECONNREFUSED` | Nothing is listening on the PC's 5277: the forward is missing (`adb -s <phone> forward --list`) or the head unit server is not running on the phone. |
+| Receiver keeps saying "waiting", logcat shows `ECONNREFUSED` | Nothing is listening on the PC's 5277: the forward is missing (`adb -s <phone> forward --list`) or the head unit server is not running on the phone. If the emulator-side `adb -s emulator-5554 reverse --list` is empty, re-run the reverse. |
+| Receiver logs `SocketTimeoutException ... after 5000ms` | You are connecting to `10.0.2.2` (emulator NAT). Set the host to `127.0.0.1` and use `adb reverse` as above. |
 | Connects, then drops after a few seconds | The phone's screen turned off or Android Auto was swiped away; the head unit server stops with it. Keep the phone unlocked and screen on (Developer options > *Stay awake* while charging). |
 | "Start head unit server" missing from the menu | Developer settings not enabled (tap Version 10x again) or Android Auto is outdated. |
 | `adb: more than one device/emulator` | Add `-s emulator-5554` or `-s <phone-serial>`, or `export ANDROID_SERIAL=...`. |
