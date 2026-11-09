@@ -11,7 +11,8 @@ RECEIVER_DIR="${PHX_RECEIVER_DIR:-$REPO_ROOT/../open-headunit}"
 
 if [ ! -f "$RECEIVER_DIR/gradlew" ]; then
   echo "Receiver fork not found at $RECEIVER_DIR" >&2
-  echo "Clone it: git clone https://github.com/andreknieriem/open-headunit \"$RECEIVER_DIR\" && git -C \"$RECEIVER_DIR\" checkout phoenix" >&2
+  echo "Clone it: git clone -b phoenix https://github.com/swdimock/open-headunit \"$RECEIVER_DIR\"" >&2
+  echo "  (optional) git -C \"$RECEIVER_DIR\" remote add upstream https://github.com/andreknieriem/open-headunit" >&2
   exit 1
 fi
 
