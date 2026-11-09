@@ -33,8 +33,11 @@ class VendorApp(
     override fun resolve(): Intent? = (pm.getLaunchIntentForPackage(primaryPackage()) ?: findFallback())
         ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-    override fun launch(): Boolean {
-        val intent = resolve() ?: return false
+    override fun launch(): Boolean = launch {}
+
+    /** Like [launch], letting [configure] add extras to the resolved intent first. */
+    fun launch(configure: (Intent) -> Unit): Boolean {
+        val intent = resolve()?.also(configure) ?: return false
         return try {
             context.startActivity(intent)
             true

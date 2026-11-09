@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds debug APKs for every app module and installs them on the connected device/emulator.
 # Order matters: the mock vendor service must exist before the launcher binds to it.
+# With a phone also attached, pick the target: ANDROID_SERIAL=emulator-5554 bash scripts/install-all.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/env.sh
@@ -13,6 +14,19 @@ adb install -r -g launcher/build/outputs/apk/debug/launcher-debug.apk
 
 # Overlay permission for the bar.
 adb shell appops set com.phoenix.hvacbar SYSTEM_ALERT_WINDOW allow || true
+
+# Android Auto receiver (Open Headunit fork, built by scripts/build-receiver.sh). Optional.
+RECEIVER_APK=build/receiver/aa-receiver-debug.apk
+RECEIVER_PKG=com.andrerinas.headunitrevived
+if [ -f "$RECEIVER_APK" ]; then
+  adb install -r -g "$RECEIVER_APK"
+  # -g covers runtime permissions; overlay and battery exemption are app-ops / whitelist, not runtime.
+  adb shell appops set "$RECEIVER_PKG" SYSTEM_ALERT_WINDOW allow || true
+  adb shell dumpsys deviceidle whitelist +"$RECEIVER_PKG" >/dev/null 2>&1 || true
+  echo "Installed AA receiver ($RECEIVER_PKG)"
+else
+  echo "No $RECEIVER_APK (run scripts/build-receiver.sh); the AA pane will show the not-installed placeholder"
+fi
 
 # HOME role for the launcher. The emulator's role service is flaky (set-home-activity can fail and
 # add-role-holder can time out), so try both and fall back to starting the activity directly.

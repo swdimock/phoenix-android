@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.phoenix.fytipc.profile.VehicleProfiles
 import com.phoenix.launcher.BuildConfig
 import com.phoenix.launcher.mode.LauncherMode
+import com.phoenix.launcher.settings.AaTransport
 import com.phoenix.launcher.settings.LauncherSettings
 import com.phoenix.launcher.update.SelfUpdater
 import com.phoenix.launcher.update.UpdateCheck
@@ -34,6 +35,8 @@ interface SettingsActions {
     fun setVehicleProfile(id: String)
     fun setAudioReadyTimeout(ms: Long)
     fun setAaReceiverPackage(pkg: String)
+    fun setAaTransport(transport: AaTransport)
+    fun setAaTcpEndpoint(host: String, port: Int)
     fun openAndroidSettings()
 }
 
@@ -55,6 +58,7 @@ fun SettingsScreen(
                 ChoiceRow(LauncherMode.entries, settings.defaultMode, { it.label }, actions::setDefaultMode)
             }
         }
+        item { ThemeSettingsSection() }
         item {
             Section("Vehicle profile") {
                 VehicleProfiles.all.forEach { profile ->
@@ -74,6 +78,7 @@ fun SettingsScreen(
             }
         }
         item { AaPackageSection(settings.aaReceiverPackage, actions::setAaReceiverPackage) }
+        item { AaTransportSection(settings, actions) }
         item {
             Section("System") {
                 BigButton("Open Android Settings", actions::openAndroidSettings, Modifier.fillMaxWidth())
@@ -106,6 +111,30 @@ private fun AaPackageSection(current: String, onSave: (String) -> Unit) {
             BigButton("Save", { onSave(text) }, Modifier.weight(1f), enabled = text.trim() != current)
             BigButton("Default", { onSave(LauncherSettings.DEFAULT_AA_RECEIVER_PACKAGE) }, Modifier.weight(1f))
         }
+    }
+}
+
+@Composable
+private fun AaTransportSection(settings: LauncherSettings, actions: SettingsActions) {
+    var host by remember(settings.aaTcpHost) { mutableStateOf(settings.aaTcpHost) }
+    var port by remember(settings.aaTcpPort) { mutableStateOf(settings.aaTcpPort.toString()) }
+    Section("Android Auto transport") {
+        ChoiceRow(AaTransport.entries, settings.aaTransport, { it.label }, actions::setAaTransport)
+        if (settings.aaTransport == AaTransport.TCP) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = host, onValueChange = { host = it }, singleLine = true, label = { Text("Host") },
+                    textStyle = TextStyle(fontSize = 22.sp), modifier = Modifier.weight(2f),
+                )
+                OutlinedTextField(
+                    value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) }, singleLine = true,
+                    label = { Text("Port") }, textStyle = TextStyle(fontSize = 22.sp), modifier = Modifier.weight(1f),
+                )
+            }
+            val changed = host.trim() != settings.aaTcpHost || port != settings.aaTcpPort.toString()
+            BigButton("Save", { actions.setAaTcpEndpoint(host, port.toIntOrNull() ?: 0) }, Modifier.fillMaxWidth(), enabled = changed)
+        }
+        Hint("TCP uses the phone's Android Auto \"head unit server\" through adb forward (emulator: 10.0.2.2:5277). USB is for the head unit. Applies on next Open Android Auto.")
     }
 }
 

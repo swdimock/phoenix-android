@@ -15,13 +15,18 @@ import androidx.compose.ui.unit.dp
 
 /** Android Auto pane: re-open button when the receiver is installed, otherwise setup guidance. */
 @Composable
-fun AaPane(installed: Boolean, receiverPackage: String, onOpen: () -> Unit, onSwitchToRadio: () -> Unit) {
+fun AaPane(
+    installed: Boolean,
+    receiverPackage: String,
+    transport: String,
+    onOpen: () -> Unit,
+    onSwitchToRadio: () -> Unit,
+) {
     PaneColumn {
         if (installed) {
             InfoCard(
                 title = "Android Auto",
-                body = "The Android Auto receiver ($receiverPackage) runs on top of this screen. " +
-                    "Connect your phone to start a session.",
+                body = "Transport: $transport\nReceiver: $receiverPackage",
             ) { BigButton("Open Android Auto", onOpen, Modifier.fillMaxWidth()) }
         } else {
             InfoCard(

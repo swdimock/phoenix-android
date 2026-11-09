@@ -12,12 +12,14 @@ Full background and phased plan: the Cursor plan file `phoenix_f-150_head_unit_r
 | Module | Type | applicationId / namespace | Purpose |
 | --- | --- | --- | --- |
 | `fyt-ipc` | library | `com.phoenix.fytipc` | Binder client for `com.syu.ms` toolkit, MCU frame codec, climate model, vehicle profiles, JSONL capture format |
+| `ui-theme` | library | `com.phoenix.uitheme` | Shared Compose theme: `AccentPreset`, `PhoenixPalette`, `PhoenixTypography` (bundled Russo One, OFL), chamfered `PhoenixShapes`, `PhoenixTheme`, `ThemeBroadcast` |
 | `mock-syu-ms` | app | **`com.syu.ms`** | Emulator stand-in for the vendor service. Same package, action, descriptors and transaction ids. Simulates the F-150 climate system, the boot audio race, and replays captures |
 | `launcher` | app | `com.phoenix.launcher` | HOME app. Boots into AA, switcher AA / Radio / Phone / Settings, audio-path readiness state machine, self-update |
 | `hvac-bar` | app | `com.phoenix.hvacbar` | Omnipresent climate bar overlay replacing `com.syu.air` |
-| (later) `aa-receiver` | app | fork of Open Headunit | Android Auto receiver. Not part of the emulator milestone |
+| `aa-receiver` | app (external) | `com.andrerinas.headunitrevived` | Android Auto receiver: our Open Headunit fork (AGPL-3.0) in `../open-headunit`, branch `phoenix`, kept out of this repo. Based on upstream `ae74788d8312` (4.0.0-beta2). Built by `scripts/build-receiver.sh` (needs NDK 29.0.14206865, CMake 3.22.1). The launcher starts it with `phoenix.transport` = `tcp`/`usb`, `phoenix.host`, `phoenix.port`, `phoenix.inset_bottom` = 227; it mutes audio while `AUDIO_PATH ready=false`. Changes: its `docs/PHOENIX-CHANGES.md`. Emulator TCP setup: `docs/ANDROID-AUTO-EMULATOR.md` |
 
-Dependency direction: `mock-syu-ms`, `launcher`, `hvac-bar` -> `fyt-ipc`. Apps never depend on each other.
+Dependency direction: `mock-syu-ms`, `launcher`, `hvac-bar` -> `fyt-ipc`; `launcher`, `hvac-bar` -> `ui-theme`.
+Apps never depend on each other.
 
 ```mermaid
 flowchart TB
@@ -26,7 +28,7 @@ flowchart TB
         subgraph ours [Our APKs]
             L[launcher]
             B[hvac-bar]
-            AA[aa-receiver - later]
+            AA[aa-receiver - Open Headunit fork]
             LIB[fyt-ipc]
         end
     end
@@ -93,9 +95,19 @@ stateDiagram-v2
 ```
 
 While not `Ready`, the launcher asks the AA receiver to hold audio (broadcast
-`com.phoenix.launcher.action.AUDIO_PATH` with `ready=false|true`; the AA fork will honour it later). The mock
+`com.phoenix.launcher.action.AUDIO_PATH` with `ready=false|true`; the AA fork writes silence while not ready). The mock
 simulates the race: the readiness signal arrives N seconds after "boot", and audio is only "audible" after the
 source-select command has been received. The mock exposes that as a debug code so the launcher can show it.
+
+## Theme
+
+Dark-only Raptor / VelociRaptor 600 styling from `ui-theme`: near-black graphite surfaces, chamfered (cut-corner)
+shapes, Russo One for wordmarks / headings / readouts, system sans for body text. The accent is a user-selected
+`AccentPreset` (`tuxedo_black` default: brushed Hennessey silver on black; alternates `molten_orange`, `race_red`, `blue_flame`; a persisted retired `ingot_silver` reads as `tuxedo_black`). The launcher owns
+the choice (Settings > Appearance, DataStore `theme_prefs`) and on start and on every change sends the explicit
+broadcast `com.phoenix.theme.action.ACCENT` with string extra `preset` (preset id) to `com.phoenix.hvacbar`, whose
+exported `ThemeReceiver` persists it in the bar's own prefs and recolours a showing bar live. Wordmarks are plain text
+and geometric shapes; no Ford / SVT / Hennessey artwork is bundled. Screenshots: `docs/screenshots/theme-*.png`.
 
 ## Emulator
 

@@ -11,6 +11,7 @@ import com.phoenix.fytipc.ConnectionState
 import com.phoenix.fytipc.FytToolkit
 import com.phoenix.fytipc.ModuleCommand
 import com.phoenix.fytipc.Modules
+import com.phoenix.launcher.host.AaAutoLaunchGate
 import com.phoenix.launcher.audio.AudioPathBroadcasts
 import com.phoenix.launcher.audio.AudioPathConfig
 import com.phoenix.launcher.audio.AudioPathService
@@ -43,6 +44,9 @@ class PhoenixLauncherApp : Application() {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
+    /** One automatic AA receiver launch per process; see [AaAutoLaunchGate]. */
+    val aaAutoLaunch = AaAutoLaunchGate()
+
     lateinit var toolkit: FytToolkit
         private set
     lateinit var settingsRepository: SettingsRepository
@@ -67,7 +71,7 @@ class PhoenixLauncherApp : Application() {
             UnavailableToolkit
         }
         settingsRepository = DataStoreSettingsRepository.create(this)
-        settings = settingsRepository.settings.stateIn(appScope, SharingStarted.Eagerly, LauncherSettings())
+        settings = settingsRepository.settings.stateIn(appScope, SharingStarted.Eagerly, LauncherSettings.platformDefaults())
         recorder = CaptureRecorder(appScope, toolkit, { getExternalFilesDir("captures") }, { settings.value.vehicleProfile }, ::logW)
         diagnostics = VehicleDiagnostics(appScope, toolkit, ::logW)
         updater = GithubReleasesUpdater(this, BuildConfig.UPDATE_OWNER, BuildConfig.UPDATE_REPO, BuildConfig.VERSION_NAME)

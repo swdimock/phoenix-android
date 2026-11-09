@@ -2,6 +2,7 @@ package com.phoenix.launcher.mode
 
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
+import com.phoenix.launcher.settings.AaTransport
 import com.phoenix.launcher.settings.LauncherSettings
 import com.phoenix.launcher.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -81,5 +82,19 @@ class LauncherViewModelTest {
         assertThat(repo.settings.value.aaReceiverPackage).isEqualTo(LauncherSettings.DEFAULT_AA_RECEIVER_PACKAGE)
         vm.setAaReceiverPackage(" org.example.aa ")
         assertThat(repo.settings.value.aaReceiverPackage).isEqualTo("org.example.aa")
+    }
+
+    @Test
+    fun aaTcpEndpoint_trimsAndFallsBack() = runTest {
+        val repo = FakeRepository()
+        val vm = LauncherViewModel(repo, SavedStateHandle())
+        vm.setAaTransport(AaTransport.TCP)
+        vm.setAaTcpEndpoint(" 192.168.1.5 ", 6000)
+        assertThat(repo.settings.value.aaTransport).isEqualTo(AaTransport.TCP)
+        assertThat(repo.settings.value.aaTcpHost).isEqualTo("192.168.1.5")
+        assertThat(repo.settings.value.aaTcpPort).isEqualTo(6000)
+        vm.setAaTcpEndpoint("", 0)
+        assertThat(repo.settings.value.aaTcpHost).isEqualTo(LauncherSettings.DEFAULT_AA_TCP_HOST)
+        assertThat(repo.settings.value.aaTcpPort).isEqualTo(LauncherSettings.DEFAULT_AA_TCP_PORT)
     }
 }

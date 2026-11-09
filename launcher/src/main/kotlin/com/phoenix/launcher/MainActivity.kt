@@ -16,12 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.lifecycleScope
 import com.phoenix.fytipc.ModuleCommand
 import com.phoenix.launcher.audio.AudioPathService
+import com.phoenix.launcher.host.AaLaunchExtras
 import com.phoenix.launcher.host.AaHost
 import com.phoenix.launcher.host.ExternalApp
 import com.phoenix.launcher.host.PackageAaHost
 import com.phoenix.launcher.host.VendorApp
 import com.phoenix.launcher.mode.LauncherMode
 import com.phoenix.launcher.mode.LauncherViewModel
+import com.phoenix.launcher.settings.AaTransport
 import com.phoenix.launcher.ui.AaPane
 import com.phoenix.launcher.ui.DiagnosticsSection
 import com.phoenix.launcher.ui.DiagnosticsUi
@@ -29,7 +31,10 @@ import com.phoenix.launcher.ui.LauncherScreen
 import com.phoenix.launcher.ui.SettingsActions
 import com.phoenix.launcher.ui.SettingsScreen
 import com.phoenix.launcher.ui.VendorAppPane
-import com.phoenix.launcher.ui.theme.PhoenixTheme
+import com.phoenix.launcher.ui.theme.LauncherTheme
+import com.phoenix.launcher.ui.theme.ThemeRepository
+import com.phoenix.uitheme.AccentPreset
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -44,10 +49,11 @@ class MainActivity : ComponentActivity() {
     private val viewModel: LauncherViewModel by viewModels { LauncherViewModel.factory(launcherApp.settingsRepository) }
 
     private val aaHost: AaHost by lazy {
-        PackageAaHost(this, { app.settings.value.aaReceiverPackage }, { app.audioPath.state.value.audioReady })
+        PackageAaHost(this, { app.settings.value }, { app.audioPath.state.value.audioReady })
     }
     private val radio: ExternalApp by lazy { VendorApp(this, RADIO_PACKAGE, VENDOR_PREFIX, listOf("Radio")) }
     private val phone: ExternalApp by lazy { VendorApp(this, PHONE_PACKAGE, VENDOR_PREFIX, listOf("Phone", "Bluetooth")) }
+    private val themeRepository by lazy { ThemeRepository(this) }
 
     /** Bumped on every resume so panes re-check which apps are installed. */
     private val resumeTick = mutableIntStateOf(0)
@@ -59,11 +65,26 @@ class MainActivity : ComponentActivity() {
         AudioPathService.start(this)
 
         if (savedInstanceState == null) {
-            lifecycleScope.launch { enter(viewModel.mode.filterNotNull().first()) }
+            lifecycleScope.launch {
+                val bootMode = viewModel.mode.filterNotNull().first()
+                // AA waits for the audio path (ready or timed out) below; other modes open right away.
+                if (bootMode == LauncherMode.AA) app.aaAutoLaunch.arm() else enter(bootMode)
+            }
+        }
+        lifecycleScope.launch {
+            combine(viewModel.mode.filterNotNull(), app.audioPath.state) { mode, audio -> mode to audio }
+                .collect { (mode, audio) ->
+                    if (app.aaAutoLaunch.shouldLaunch(mode == LauncherMode.AA, audio.audioReady, aaHost.isInstalled())) {
+                        enter(LauncherMode.AA)
+                    }
+                }
         }
 
+        lifecycleScope.launch { themeRepository.preset.collect(themeRepository::broadcast) }
+
         setContent {
-            PhoenixTheme {
+            val preset by themeRepository.preset.collectAsState(initial = AccentPreset.DEFAULT)
+            LauncherTheme(preset) {
                 val mode by viewModel.mode.collectAsState()
                 val audio by app.audioPath.state.collectAsState()
                 val connection by app.toolkit.connectionState.collectAsState()
@@ -111,7 +132,10 @@ class MainActivity : ComponentActivity() {
             LauncherMode.AA -> {
                 val settings by app.settings.collectAsState()
                 val installed = remember(tick, settings.aaReceiverPackage) { aaHost.isInstalled() }
-                AaPane(installed, settings.aaReceiverPackage, { aaHost.launch() }, { select(LauncherMode.RADIO) })
+                AaPane(
+                    installed, settings.aaReceiverPackage, AaLaunchExtras.describe(settings),
+                    { aaHost.launch() }, { select(LauncherMode.RADIO) },
+                )
             }
             LauncherMode.RADIO -> VendorAppPane(
                 title = "Radio",
@@ -156,6 +180,8 @@ class MainActivity : ComponentActivity() {
         override fun setVehicleProfile(id: String) = viewModel.setVehicleProfile(id)
         override fun setAudioReadyTimeout(ms: Long) = viewModel.setAudioReadyTimeout(ms)
         override fun setAaReceiverPackage(pkg: String) = viewModel.setAaReceiverPackage(pkg)
+        override fun setAaTransport(transport: AaTransport) = viewModel.setAaTransport(transport)
+        override fun setAaTcpEndpoint(host: String, port: Int) = viewModel.setAaTcpEndpoint(host, port)
         override fun openAndroidSettings() {
             runCatching { startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         }

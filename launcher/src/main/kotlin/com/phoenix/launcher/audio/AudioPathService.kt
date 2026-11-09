@@ -28,8 +28,10 @@ class AudioPathService : LifecycleService() {
             NotificationChannel(CHANNEL_ID, getString(R.string.audio_channel_name), NotificationManager.IMPORTANCE_LOW)
                 .apply { description = getString(R.string.audio_channel_description) },
         )
+        // Promote to foreground before touching anything else: Android 12 gives us ~10 s from
+        // startForegroundService(), and a slow cold boot (seen on a stalled emulator) can eat most of it.
+        startForeground(NOTIFICATION_ID, notification(AudioPathState.WAITING))
         val machine = launcherApp.audioPath
-        startForeground(NOTIFICATION_ID, notification(machine.state.value))
         lifecycleScope.launch {
             machine.state.collect { notifications.notify(NOTIFICATION_ID, notification(it)) }
         }

@@ -7,6 +7,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.phoenix.launcher.settings.AaTransport
 import com.phoenix.launcher.settings.LauncherSettings
 import com.phoenix.launcher.settings.SettingsRepository
 import kotlinx.coroutines.flow.SharingStarted
@@ -53,6 +54,14 @@ class LauncherViewModel(
     fun setAudioReadyTimeout(ms: Long) = edit { it.copy(audioReadyTimeoutMs = ms) }
     fun setAaReceiverPackage(pkg: String) = edit {
         it.copy(aaReceiverPackage = pkg.trim().ifEmpty { LauncherSettings.DEFAULT_AA_RECEIVER_PACKAGE })
+    }
+
+    fun setAaTransport(transport: AaTransport) = edit { it.copy(aaTransport = transport) }
+    fun setAaTcpEndpoint(host: String, port: Int) = edit {
+        it.copy(
+            aaTcpHost = host.trim().ifEmpty { LauncherSettings.DEFAULT_AA_TCP_HOST },
+            aaTcpPort = port.takeIf { p -> p in 1..65535 } ?: LauncherSettings.DEFAULT_AA_TCP_PORT,
+        )
     }
 
     private fun edit(transform: (LauncherSettings) -> LauncherSettings) {
