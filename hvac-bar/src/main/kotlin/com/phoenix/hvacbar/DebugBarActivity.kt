@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,7 +46,7 @@ class DebugBarActivity : ComponentActivity() {
                 )
                 Box(Modifier.align(Alignment.BottomCenter)) {
                     if (sample != null) {
-                        BarTheme {
+                        BarTheme(app.settings.accentPreset.collectAsState().value) {
                             HvacBar(
                                 state = barUiState(sample.first, sample.second, useCelsius = false),
                                 onControl = {},

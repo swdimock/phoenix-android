@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 rootProject.name = "phoenix-android"
 
 include(":fyt-ipc")
+include(":ui-theme")
 include(":mock-syu-ms")
 include(":launcher")
 include(":hvac-bar")

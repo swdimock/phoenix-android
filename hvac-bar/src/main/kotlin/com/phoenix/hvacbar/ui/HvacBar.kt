@@ -1,6 +1,7 @@
 package com.phoenix.hvacbar.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material3.Text
@@ -22,6 +23,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.phoenix.hvacbar.R
+import com.phoenix.uitheme.PhoenixShapes
+import com.phoenix.uitheme.PhoenixTheme
 
 private val RowGap = 3.dp
 
@@ -38,7 +41,9 @@ fun HvacBar(
     hint: String? = null,
 ) {
     val enabled = state.interactive
-    Box(modifier.fillMaxSize().background(BarColors.background)) {
+    val palette = PhoenixTheme.palette
+    Box(modifier.fillMaxSize().background(palette.backgroundRaised)) {
+        Box(Modifier.fillMaxWidth().height(2.dp).background(palette.accent))
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -130,13 +135,15 @@ private fun BarRow(modifier: Modifier, content: @Composable RowScope.() -> Unit)
 
 @Composable
 private fun StatusChip(text: String, modifier: Modifier) {
+    val palette = PhoenixTheme.palette
     Text(
         text = text,
-        color = BarColors.text,
+        color = palette.text,
         fontSize = 13.sp,
         modifier = modifier
             .padding(top = 2.dp)
-            .background(BarColors.surface.copy(alpha = 0.92f), RoundedCornerShape(6.dp))
+            .background(palette.surface.copy(alpha = 0.92f), PhoenixShapes.Chip)
+            .border(1.dp, palette.accent, PhoenixShapes.Chip)
             .padding(horizontal = 10.dp, vertical = 2.dp),
     )
 }

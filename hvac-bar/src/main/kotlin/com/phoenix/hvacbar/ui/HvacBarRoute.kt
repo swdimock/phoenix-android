@@ -23,6 +23,7 @@ fun HvacBarRoute(repository: ClimateRepository, settings: BarSettings, modifier:
     val climate by repository.state.collectAsState()
     val connection by repository.connection.collectAsState()
     val celsius by settings.useCelsius.collectAsState()
+    val accent by settings.accentPreset.collectAsState()
     var hint by remember { mutableStateOf<BarHint?>(null) }
 
     LaunchedEffect(repository) {
@@ -34,7 +35,7 @@ fun HvacBarRoute(repository: ClimateRepository, settings: BarSettings, modifier:
     }
 
     val ui = remember(climate, connection, celsius) { barUiState(climate, connection, celsius) }
-    BarTheme {
+    BarTheme(accent) {
         HvacBar(
             state = ui,
             onControl = { repository.send(it.action) },

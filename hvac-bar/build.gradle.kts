@@ -33,6 +33,7 @@ android {
 
 dependencies {
     implementation(project(":fyt-ipc"))
+    implementation(project(":ui-theme"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
