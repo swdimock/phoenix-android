@@ -65,14 +65,17 @@ adb -s emulator-5554 reverse tcp:5277 tcp:5277
    itself once the audio path is ready). The receiver connects to `127.0.0.1:5277`, retrying 5 s after each
    failed attempt, and shows "Android Auto: waiting for phone at 127.0.0.1:5277 (attempt N ...)" until the phone answers.
    Accept any prompt on the phone; the projection then fills the screen above the 227 px climate bar.
-6. The round button at the top-left of the receiver goes back to the launcher (system HOME). The receiver
-   stops retrying while it is in the background; tap **Open Android Auto** to resume.
+6. The **HOME** key at the left end of the climate bar goes back to the launcher (system HOME). The receiver
+   stops retrying while it is in the background; tap **Open Android Auto** to resume. (The receiver's own floating
+   home button is suppressed by the launcher's `phoenix.home_button=false`; it only appears on manual launches
+   that omit that extra.)
 
 Manual launch without the launcher (same extras the launcher sends):
 
 ```bash
 adb -s emulator-5554 shell am start -n com.andrerinas.headunitrevived/com.andrerinas.openheadunit.main.MainActivity \
-  --es phoenix.transport tcp --es phoenix.host 127.0.0.1 --ei phoenix.port 5277 --ei phoenix.inset_bottom 227
+  --es phoenix.transport tcp --es phoenix.host 127.0.0.1 --ei phoenix.port 5277 --ei phoenix.inset_bottom 227 \
+  --ez phoenix.home_button false
 ```
 
 ![Receiver waiting for the phone](screenshots/aa-receiver-waiting.png)

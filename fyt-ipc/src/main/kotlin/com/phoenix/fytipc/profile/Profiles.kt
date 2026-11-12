@@ -133,7 +133,7 @@ object Wk2ReferenceProfile : VehicleProfile, ClimateCodec {
  * 2011 truck's box may be a different protocol entirely. Fields to confirm in plan Phase 1:
  *  - read codes for each bar element (baseline/diff method), and the canbus id (code 1000)
  *  - write indices for each bar button (two-pass sweep of `cmd(6, {1, N})`, wiki page 6)
- *  - setpoint range (Ford panel shows 60..85 F; UNVERIFIED) and seat cooling presence (Raptor)
+ *  - setpoint range (Ford panel shows 60..85 F; UNVERIFIED). Seats: heated only, no ventilation (owner confirmed)
  *  - audio readiness signal + source select command (Phase 1c recording)
  */
 object FordF150Profile : VehicleProfile by Wk2ReferenceProfile, ClimateCodec by Wk2ReferenceProfile {

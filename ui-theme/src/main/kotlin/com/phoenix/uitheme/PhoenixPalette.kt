@@ -3,6 +3,7 @@ package com.phoenix.uitheme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 
 /**
  * Full colour set: fixed graphite tiers and status colours plus the accent of the selected [preset].
@@ -41,21 +42,35 @@ data class PhoenixPalette(
     val accentPressed: Color get() = preset.accentPressed
     val onAccent: Color get() = preset.onAccent
 
-    /** Active / filled controls: brushed-metal gradient for Tuxedo Black, flat accent for the others. */
-    val activeFill: Brush get() = Brush.verticalGradient(listOf(preset.fillTop, preset.fillBottom))
+    /** Active / filled controls: a bold top-lit gradient of the accent (brushed metal for Tuxedo Black). */
+    val activeFill: Brush get() = Brush.verticalGradient(listOf(preset.fillTop, preset.accent, preset.fillBottom))
 
     /** Inactive controls: flat graphite, thin [inactiveOutline], [inactiveText]. */
     val inactiveFill: Color get() = surface
     val inactiveOutline: Color get() = accentDim
     val inactiveText: Color = Color(0xFFC9CCD1)
 
+    /** Inactive controls drawn as a faintly top-lit graphite slab instead of a flat [inactiveFill]. */
+    val inactiveFillBrush: Brush get() = Brush.verticalGradient(listOf(surfaceHigh, surface, surface))
+
+    /** Thin lit edge along the top of a raised control. */
+    val bevelHighlight: Color = Color(0x3AFFFFFF)
+
+    /** Thin shaded edge along the bottom of a raised control. */
+    val bevelShadow: Color = Color(0x8C000000)
+
     /** Unlit fan segments and level pips. */
     val unlit: Color = Color(0xFF232529)
 
-    /** Header band: a touch lighter at the top edge. */
-    val headerBand: Brush get() = Brush.verticalGradient(listOf(surfaceHigh, backgroundRaised))
-
     companion object {
         fun forPreset(preset: AccentPreset) = PhoenixPalette(preset)
+
+        /** Bold top-lit gradient of a fixed status colour (seat heat, rear defrost), matching [activeFill]'s depth. */
+        fun boldFill(color: Color): Brush = Brush.verticalGradient(
+            listOf(lerp(color, Color.White, 0.18f), color, lerp(color, Color.Black, 0.32f)),
+        )
     }
+
+    /** Header band: a touch lighter at the top edge. */
+    val headerBand: Brush get() = Brush.verticalGradient(listOf(surfaceHigh, backgroundRaised))
 }

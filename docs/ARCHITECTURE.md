@@ -16,7 +16,7 @@ Full background and phased plan: the Cursor plan file `phoenix_f-150_head_unit_r
 | `mock-syu-ms` | app | **`com.syu.ms`** | Emulator stand-in for the vendor service. Same package, action, descriptors and transaction ids. Simulates the F-150 climate system, the boot audio race, and replays captures |
 | `launcher` | app | `com.phoenix.launcher` | HOME app. Boots into AA, switcher AA / Radio / Phone / Settings, audio-path readiness state machine, self-update |
 | `hvac-bar` | app | `com.phoenix.hvacbar` | Omnipresent climate bar overlay replacing `com.syu.air` |
-| `aa-receiver` | app (external) | `com.andrerinas.headunitrevived` | Android Auto receiver: our Open Headunit fork (AGPL-3.0) at [swdimock/open-headunit](https://github.com/swdimock/open-headunit), branch `phoenix`, checked out as the sibling `../open-headunit` (remote `origin` = fork, `upstream` = andreknieriem/open-headunit), kept out of this repo. Based on upstream `ae74788d8312` (4.0.0-beta2); rebase `phoenix` onto upstream to pick up new AA releases. Built by `scripts/build-receiver.sh` (needs NDK 29.0.14206865, CMake 3.22.1). The launcher starts it with `phoenix.transport` = `tcp`/`usb`, `phoenix.host`, `phoenix.port`, `phoenix.inset_bottom` = 227; it mutes audio while `AUDIO_PATH ready=false`. Changes: its `docs/PHOENIX-CHANGES.md`. Emulator TCP setup: `docs/ANDROID-AUTO-EMULATOR.md` |
+| `aa-receiver` | app (external) | `com.andrerinas.headunitrevived` | Android Auto receiver: our Open Headunit fork (AGPL-3.0) at [swdimock/open-headunit](https://github.com/swdimock/open-headunit), branch `phoenix`, checked out as the sibling `../open-headunit` (remote `origin` = fork, `upstream` = andreknieriem/open-headunit), kept out of this repo. Based on upstream `ae74788d8312` (4.0.0-beta2); rebase `phoenix` onto upstream to pick up new AA releases. Built by `scripts/build-receiver.sh` (needs NDK 29.0.14206865, CMake 3.22.1). The launcher starts it with `phoenix.transport` = `tcp`/`usb`, `phoenix.host`, `phoenix.port`, `phoenix.inset_bottom` = 227, `phoenix.home_button` = false (the bar has HOME); it mutes audio while `AUDIO_PATH ready=false`. Changes: its `docs/PHOENIX-CHANGES.md`. Emulator TCP setup: `docs/ANDROID-AUTO-EMULATOR.md` |
 
 Dependency direction: `mock-syu-ms`, `launcher`, `hvac-bar` -> `fyt-ipc`; `launcher`, `hvac-bar` -> `ui-theme`.
 Apps never depend on each other.
@@ -106,8 +106,28 @@ shapes, Russo One for wordmarks / headings / readouts, system sans for body text
 `AccentPreset` (`tuxedo_black` default: brushed Hennessey silver on black; alternates `molten_orange`, `race_red`, `blue_flame`; a persisted retired `ingot_silver` reads as `tuxedo_black`). The launcher owns
 the choice (Settings > Appearance, DataStore `theme_prefs`) and on start and on every change sends the explicit
 broadcast `com.phoenix.theme.action.ACCENT` with string extra `preset` (preset id) to `com.phoenix.hvacbar`, whose
-exported `ThemeReceiver` persists it in the bar's own prefs and recolours a showing bar live. Wordmarks are plain text
-and geometric shapes; no Ford / SVT / Hennessey artwork is bundled. Screenshots: `docs/screenshots/theme-*.png`.
+exported `ThemeReceiver` persists it in the bar's own prefs and recolours a showing bar live. Screenshots: `docs/screenshots/theme-*.png`.
+
+Controls are raised, chamfered keys with a bold top-lit accent gradient when latched (`PhoenixPalette.activeFill`,
+`boldFill` for fixed colours such as seat heat), a faintly lit graphite slab when not, and a 1.5 dp bevel
+(highlight top, shadow bottom). Two key kinds on the bar: toggles (asymmetric chamfer, fill when ON) and action keys
+(HOME: even chamfer, accent outline). Climate glyphs (windshield defrost, seated figure with airflow arrows, heated
+seat) are stroke-drawn `ImageVector`s in `hvac-bar/.../HvacGlyphs.kt`. The bar shows only what the 2011 Raptor has:
+no seat ventilation and no rear-window defroster (both stay in the `fyt-ipc` model for other vehicles).
+
+**Branding.** The repo bundles no Ford / SVT / Hennessey artwork (trademarks). The launcher header and the cold-start
+splash look up a drawable named `hennessey_logo` at runtime (`launcher/.../ui/Branding.kt`): drop the owner's logo at
+`launcher/src/main/res/drawable-nodpi/hennessey_logo.png` (or `.webp`, light-on-transparent, any size; it is scaled to
+fit) and it is used; without it a type-only HENNESSEY wordmark is drawn. The badge reads VELOCIRAPTOR 600 / HPE600 /
+No. 15 (`VehicleIdentity`, this truck's Hennessey build number). The splash (`SplashOverlay`) is drawn over the
+launcher on every fresh process start, held 1.8 s and faded out; activity recreation does not replay it.
+
+**HOME.** The climate bar carries a full-height HOME key on its left (`HvacBar` -> `ACTION_MAIN`/`CATEGORY_HOME`,
+allowed from the overlay because the bar holds `SYSTEM_ALERT_WINDOW`), so HOME is reachable from Android Auto, the
+vendor radio app and anything else without covering their UI. The launcher therefore sends the AA receiver
+`phoenix.home_button=false`, which suppresses the receiver's own floating button. While the launcher is in the
+foreground it also sends `com.phoenix.launcher.action.HOME` with `visible=true|false` (`LauncherHomeBroadcast`) so
+the bar can fill the HOME key; the bar's `HomeReceiver` updates an ephemeral `BarSettings.launcherHome` flag.
 
 ## Emulator
 

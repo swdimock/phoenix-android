@@ -51,6 +51,14 @@
                 <action android:name="com.phoenix.theme.action.ACCENT" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".overlay.HomeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.phoenix.launcher.action.HOME" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

@@ -51,6 +51,7 @@ class DebugBarActivity : ComponentActivity() {
                                 state = barUiState(sample.first, sample.second, useCelsius = false),
                                 onControl = {},
                                 onToggleUnits = {},
+                                onHome = {},
                                 modifier = barModifier,
                             )
                         }

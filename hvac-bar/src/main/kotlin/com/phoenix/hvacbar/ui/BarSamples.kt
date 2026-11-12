@@ -13,18 +13,25 @@ object BarSamples {
         recirculate = false, rearDefrost = false, frontDefrost = false,
         fanSpeed = 3, fanAuto = false,
         driverTemp = Setpoint(tenthsC = 222), passengerTemp = Setpoint(tenthsC = 222),
-        driverSeatHeat = 0, driverSeatCool = 2, passengerSeatHeat = 0, passengerSeatCool = 0,
+        driverSeatHeat = 2, passengerSeatHeat = 0,
     ).withMode(AirMode.FACE)
 
     val autoDual = typicalDriving.withMode(AirMode.FACE_FEET).copy(
         auto = true, dual = true, fanSpeed = 5,
         driverTemp = Setpoint(tenthsC = 211), passengerTemp = Setpoint(sentinel = Setpoint.Sentinel.HI),
-        driverSeatCool = 0, passengerSeatHeat = 3,
+        driverSeatHeat = 0, passengerSeatHeat = 3,
     )
 
     /** Full AUTO as the WK2 reports it at rest: fan code 15, every airflow flag clear. */
     val fullAuto = typicalDriving.withMode(AirMode.AUTO).copy(
-        auto = true, fanSpeed = null, fanAuto = true, dual = true, driverSeatCool = 0,
+        auto = true, fanSpeed = null, fanAuto = true, dual = true, driverSeatHeat = 0,
+    )
+
+    /** Cold morning: front defrost on, feet + windshield airflow, fan high, seats heated. */
+    val defrost = typicalDriving.withMode(AirMode.FEET_DEFROST).copy(
+        ac = false, frontDefrost = true, recirculate = false, fanSpeed = 6,
+        driverTemp = Setpoint(sentinel = Setpoint.Sentinel.HI), passengerTemp = Setpoint(tenthsC = 240),
+        driverSeatHeat = 3, passengerSeatHeat = 1,
     )
 
     /** Named samples: climate state plus the connection state to render with. */
@@ -33,6 +40,7 @@ object BarSamples {
         "typical" to (typicalDriving to ConnectionState.CONNECTED),
         "auto-dual" to (autoDual to ConnectionState.CONNECTED),
         "full-auto" to (fullAuto to ConnectionState.CONNECTED),
+        "defrost" to (defrost to ConnectionState.CONNECTED),
         "disconnected" to (typicalDriving to ConnectionState.DISCONNECTED),
     )
 }

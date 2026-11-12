@@ -8,11 +8,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import com.phoenix.fytipc.ModuleCommand
 import com.phoenix.launcher.audio.AudioPathService
@@ -30,10 +33,12 @@ import com.phoenix.launcher.ui.DiagnosticsUi
 import com.phoenix.launcher.ui.LauncherScreen
 import com.phoenix.launcher.ui.SettingsActions
 import com.phoenix.launcher.ui.SettingsScreen
+import com.phoenix.launcher.ui.SplashOverlay
 import com.phoenix.launcher.ui.VendorAppPane
 import com.phoenix.launcher.ui.theme.LauncherTheme
 import com.phoenix.launcher.ui.theme.ThemeRepository
 import com.phoenix.uitheme.AccentPreset
+import com.phoenix.uitheme.LauncherHomeBroadcast
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -82,13 +87,17 @@ class MainActivity : ComponentActivity() {
 
         lifecycleScope.launch { themeRepository.preset.collect(themeRepository::broadcast) }
 
+        val coldStart = savedInstanceState == null
         setContent {
             val preset by themeRepository.preset.collectAsState(initial = AccentPreset.DEFAULT)
             LauncherTheme(preset) {
                 val mode by viewModel.mode.collectAsState()
                 val audio by app.audioPath.state.collectAsState()
                 val connection by app.toolkit.connectionState.collectAsState()
-                LauncherScreen(mode, audio, connection, onSelectMode = ::select) { Pane(it) }
+                Box(Modifier.fillMaxSize()) {
+                    LauncherScreen(mode, audio, connection, onSelectMode = ::select) { Pane(it) }
+                    SplashOverlay(show = coldStart)
+                }
             }
         }
     }
@@ -96,6 +105,17 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         resumeTick.intValue++
+        publishLauncherHome(true)
+    }
+
+    override fun onPause() {
+        publishLauncherHome(false)
+        super.onPause()
+    }
+
+    /** Tells the HVAC bar whether we are the foreground activity so it can light its HOME key. */
+    private fun publishLauncherHome(visible: Boolean) {
+        sendBroadcast(LauncherHomeBroadcast.intent(visible, HVAC_BAR_PACKAGE))
     }
 
     private fun select(mode: LauncherMode) {
@@ -191,5 +211,6 @@ class MainActivity : ComponentActivity() {
         const val RADIO_PACKAGE = "com.syu.radio"
         const val PHONE_PACKAGE = "com.syu.bt"
         const val VENDOR_PREFIX = "com.syu."
+        const val HVAC_BAR_PACKAGE = "com.phoenix.hvacbar"
     }
 }

@@ -7,10 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -26,34 +27,47 @@ import com.phoenix.hvacbar.R
 import com.phoenix.uitheme.PhoenixShapes
 import com.phoenix.uitheme.PhoenixTheme
 
-private val RowGap = 3.dp
+/** Gap between keys, both within a row and between rows. */
+private val RowGap = 6.dp
+
+/** Width of the HOME rail on the left of the bar. */
+private val HomeRailWidth = 92.dp
 
 /**
- * The three-row climate bar. Stateless: fills whatever height it is given (227 px in the overlay).
- * While [BarUiState.interactive] is false the bar is dimmed, labelled, and ignores taps.
+ * The climate bar: a full-height HOME rail on the left and three rows of climate keys. Stateless: fills whatever
+ * height it is given (227 px in the overlay). While [BarUiState.interactive] is false the climate keys are dimmed,
+ * labelled, and ignore taps; HOME keeps working.
  */
 @Composable
 fun HvacBar(
     state: BarUiState,
     onControl: (BarControl) -> Unit,
     onToggleUnits: () -> Unit,
+    onHome: () -> Unit,
     modifier: Modifier = Modifier,
+    homeActive: Boolean = false,
     hint: String? = null,
 ) {
     val enabled = state.interactive
     val palette = PhoenixTheme.palette
     Box(modifier.fillMaxSize().background(palette.backgroundRaised)) {
         Box(Modifier.fillMaxWidth().height(2.dp).background(palette.accent))
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .alpha(if (enabled) 1f else 0.4f)
-                .padding(horizontal = 6.dp, vertical = 3.dp),
-            verticalArrangement = Arrangement.spacedBy(RowGap),
+        Row(
+            modifier = Modifier.fillMaxSize().padding(start = 6.dp, end = 6.dp, top = 10.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ToggleRow(state, enabled, onControl, Modifier.weight(1f))
-            AuxRow(state, enabled, onControl, Modifier.weight(1f))
-            ControlRow(state, enabled, onControl, onToggleUnits, Modifier.weight(1f))
+            HomeButton(homeActive, onHome, Modifier.width(HomeRailWidth).fillMaxHeight())
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .alpha(if (enabled) 1f else 0.4f),
+                verticalArrangement = Arrangement.spacedBy(RowGap),
+            ) {
+                ToggleRow(state, enabled, onControl, Modifier.weight(1f))
+                AuxRow(state, enabled, onControl, Modifier.weight(1f))
+                ControlRow(state, enabled, onControl, onToggleUnits, Modifier.weight(1f))
+            }
         }
         val label = if (!enabled) stringResource(R.string.vehicle_link) else hint
         if (label != null) StatusChip(label, Modifier.align(Alignment.TopCenter))
@@ -65,23 +79,20 @@ private fun ToggleRow(state: BarUiState, enabled: Boolean, onControl: (BarContro
     BarRow(modifier) {
         IconToggle(Icons.Filled.PowerSettingsNew, "power", state.power, enabled, { onControl(BarControl.POWER) }, Modifier.weight(1f))
         LabelButton("AUTO", state.auto, enabled, { onControl(BarControl.AUTO) }, Modifier.weight(1f))
-        LabelButton("REAR", state.rearDefrost, enabled, { onControl(BarControl.REAR_DEFROST) }, Modifier.weight(1f))
-        LabelButton("DUAL", state.dual, enabled, { onControl(BarControl.DUAL) }, Modifier.weight(1f))
         LabelButton("A/C", state.ac, enabled, { onControl(BarControl.AC) }, Modifier.weight(1f))
+        LabelButton("DUAL", state.dual, enabled, { onControl(BarControl.DUAL) }, Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun AuxRow(state: BarUiState, enabled: Boolean, onControl: (BarControl) -> Unit, modifier: Modifier) {
     BarRow(modifier) {
-        SeatButton(state.driverSeatHeat, heat = true, "driver seat heat", enabled, { onControl(BarControl.DRIVER_SEAT_HEAT) }, Modifier.weight(1f))
-        SeatButton(state.driverSeatCool, heat = false, "driver seat cool", enabled, { onControl(BarControl.DRIVER_SEAT_COOL) }, Modifier.weight(1f))
-        LabelButton("FRONT", state.frontDefrost, enabled, { onControl(BarControl.FRONT_DEFROST) }, Modifier.weight(1f), caption = "DEFROST", fontSize = 18)
-        LabelButton(state.mode, Lamp.OFF, enabled, { onControl(BarControl.MODE) }, Modifier.weight(1f), caption = "MODE", fontSize = 18)
+        SeatHeatButton(state.driverSeatHeat, "driver seat heat", enabled, { onControl(BarControl.DRIVER_SEAT_HEAT) }, Modifier.weight(1f))
+        IconToggle(HvacGlyphs.FrontDefrost, "front defrost", state.frontDefrost, enabled, { onControl(BarControl.FRONT_DEFROST) }, Modifier.weight(1f), iconSize = 46)
+        ModeButton(state.mode, enabled, { onControl(BarControl.MODE) }, Modifier.weight(1f))
         LabelButton("RECIRC", state.recirculate, enabled, { onControl(BarControl.RECIRCULATE) }, Modifier.weight(1f), fontSize = 18)
         LabelButton("MAX A/C", state.maxAc, enabled, { onControl(BarControl.MAX_AC) }, Modifier.weight(1f), fontSize = 18)
-        SeatButton(state.passengerSeatCool, heat = false, "passenger seat cool", enabled, { onControl(BarControl.PASSENGER_SEAT_COOL) }, Modifier.weight(1f))
-        SeatButton(state.passengerSeatHeat, heat = true, "passenger seat heat", enabled, { onControl(BarControl.PASSENGER_SEAT_HEAT) }, Modifier.weight(1f))
+        SeatHeatButton(state.passengerSeatHeat, "passenger seat heat", enabled, { onControl(BarControl.PASSENGER_SEAT_HEAT) }, Modifier.weight(1f), mirrored = true)
     }
 }
 
@@ -102,7 +113,7 @@ private fun ControlRow(
             onToggleUnits = onToggleUnits,
             weight = 1f,
         )
-        Box(Modifier.width(8.dp))
+        Box(Modifier.width(2.dp))
         FanControl(
             segments = state.fanSegments,
             auto = state.fanAuto,
@@ -111,7 +122,7 @@ private fun ControlRow(
             onUp = { onControl(BarControl.FAN_UP) },
             weight = 1f,
         )
-        Box(Modifier.width(8.dp))
+        Box(Modifier.width(2.dp))
         TempControl(
             temp = state.passengerTemp,
             enabled = enabled,

@@ -87,15 +87,15 @@ class ClimateRepositoryTest {
 
     @Test
     fun unsupportedActionEmitsHintAndSendsNothing() = runTest(UnconfinedTestDispatcher()) {
-        val noSeatCool = object : VehicleProfile by FordF150Profile {
+        val noMaxAc = object : VehicleProfile by FordF150Profile {
             override fun command(action: ClimateAction, current: ClimateState): ModuleCommand? =
-                if (action is ClimateAction.CycleSeatCool) null else FordF150Profile.command(action, current)
+                if (action is ClimateAction.ToggleMaxAc) null else FordF150Profile.command(action, current)
         }
-        val repo = repository(noSeatCool)
+        val repo = repository(noMaxAc)
         val hints = mutableListOf<BarHint>()
         backgroundScope.launch { repo.hints.collect { hints += it } }
 
-        assertThat(repo.send(BarControl.DRIVER_SEAT_COOL.action)).isEqualTo(SendResult.UNSUPPORTED)
+        assertThat(repo.send(BarControl.MAX_AC.action)).isEqualTo(SendResult.UNSUPPORTED)
         advanceUntilIdle()
 
         assertThat(hints).containsExactly(BarHint.NOT_SUPPORTED)

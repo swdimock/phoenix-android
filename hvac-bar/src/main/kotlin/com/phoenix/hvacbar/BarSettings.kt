@@ -25,6 +25,14 @@ class BarSettings(context: Context) {
     /** Accent pushed by the launcher (`ThemeBroadcast`). [AccentPreset.DEFAULT] (Tuxedo Black) until the launcher says otherwise. */
     val accentPreset: StateFlow<AccentPreset> = _accentPreset.asStateFlow()
 
+    private val _launcherHome = MutableStateFlow(false)
+
+    /**
+     * True while the Phoenix launcher is in the foreground ([com.phoenix.uitheme.LauncherHomeBroadcast]). Ephemeral: not persisted.
+     * The HOME key on the bar lights when this is true.
+     */
+    val launcherHome: StateFlow<Boolean> = _launcherHome.asStateFlow()
+
     fun toggleUnits() {
         val celsius = !_useCelsius.value
         _useCelsius.value = celsius
@@ -34,6 +42,10 @@ class BarSettings(context: Context) {
     fun setAccentPreset(preset: AccentPreset) {
         _accentPreset.value = preset
         prefs.edit { putString(KEY_ACCENT, preset.id) }
+    }
+
+    fun setLauncherHome(visible: Boolean) {
+        _launcherHome.value = visible
     }
 
     private companion object {

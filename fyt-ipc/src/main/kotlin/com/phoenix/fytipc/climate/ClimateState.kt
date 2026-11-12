@@ -86,7 +86,7 @@ data class ClimateState(
     val passengerTemp: Setpoint = Setpoint(),
     val driverSeatHeat: Int? = null,    // 0..3
     val passengerSeatHeat: Int? = null, // 0..3
-    val driverSeatCool: Int? = null,    // 0..3 (Raptor has cooled seats)
+    val driverSeatCool: Int? = null,    // 0..3; kept in the model for vehicles with ventilated seats (the 2011 Raptor has none; the bar hides it)
     val passengerSeatCool: Int? = null,
     val lastUpdateMs: Long = 0L,
 ) {

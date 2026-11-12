@@ -8,6 +8,7 @@ import com.phoenix.fytipc.climate.AirMode
 import com.phoenix.fytipc.climate.ClimateAction
 import com.phoenix.fytipc.climate.ClimateState
 import com.phoenix.fytipc.climate.Setpoint
+import com.phoenix.fytipc.climate.Zone
 import com.phoenix.fytipc.profile.FordF150Profile
 import com.phoenix.fytipc.profile.Wk2ReferenceProfile
 import org.junit.Test
@@ -28,11 +29,12 @@ class BarUiStateTest {
         assertThat(ui.interactive).isTrue()
         assertThat(ui.driverTemp).isEqualTo(TempText("--", null))
         assertThat(ui.passengerTemp).isEqualTo(TempText("--", null))
-        assertThat(ui.mode).isEqualTo("--")
+        assertThat(ui.mode).isEqualTo(AirMode.UNKNOWN)
+        assertThat(modeText(ui.mode)).isEqualTo("--")
         assertThat(ui.fanSegments).isNull()
         assertThat(ui.fanAuto).isFalse()
-        assertThat(listOf(ui.power, ui.auto, ui.ac, ui.dual, ui.recirculate, ui.rearDefrost, ui.frontDefrost))
-            .containsExactly(Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN)
+        assertThat(listOf(ui.power, ui.auto, ui.ac, ui.dual, ui.recirculate, ui.frontDefrost))
+            .containsExactly(Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN, Lamp.UNKNOWN)
         assertThat(ui.driverSeatHeat.lamp).isEqualTo(Lamp.UNKNOWN)
     }
 
@@ -109,19 +111,30 @@ class BarUiStateTest {
             ConnectionState.CONNECTED,
             useCelsius = false,
         ).mode
-        assertThat(shown(0, 1, 0)).isEqualTo("FACE")
-        assertThat(shown(0, 1, 1)).isEqualTo("FACE+FEET")
-        assertThat(shown(0, 0, 1)).isEqualTo("FEET")
-        assertThat(shown(1, 0, 1)).isEqualTo("FEET+DEF")
-        assertThat(shown(1, 0, 0)).isEqualTo("DEF")
-        assertThat(shown(0, 0, 0)).isEqualTo("AUTO")
-        assertThat(shown(1, 1, 0)).isEqualTo("--")
+        assertThat(shown(0, 1, 0)).isEqualTo(AirMode.FACE)
+        assertThat(shown(0, 1, 1)).isEqualTo(AirMode.FACE_FEET)
+        assertThat(shown(0, 0, 1)).isEqualTo(AirMode.FEET)
+        assertThat(shown(1, 0, 1)).isEqualTo(AirMode.FEET_DEFROST)
+        assertThat(shown(1, 0, 0)).isEqualTo(AirMode.DEFROST)
+        assertThat(shown(0, 0, 0)).isEqualTo(AirMode.AUTO)
+        assertThat(shown(1, 1, 0)).isEqualTo(AirMode.UNKNOWN)
+        assertThat(modeText(AirMode.FACE_FEET)).isEqualTo("FACE+FEET")
+        assertThat(modeText(AirMode.AUTO)).isEqualTo(BarUiState.AUTO_TEXT)
+        assertThat(modeText(AirMode.UNKNOWN)).isEqualTo(BarUiState.UNKNOWN_TEXT)
         assertThat(AirMode.entries.map(::modeText).toSet()).hasSize(AirMode.entries.size)
     }
 
     @Test
     fun modeButtonCyclesTheMode() {
         assertThat(BarControl.MODE.action).isEqualTo(ClimateAction.CycleMode)
+    }
+
+    @Test
+    fun barHasNoSeatCoolingOrRearDefrostControls() {
+        assertThat(BarControl.entries.map { it.action }.filterIsInstance<ClimateAction.CycleSeatCool>()).isEmpty()
+        assertThat(BarControl.entries.map { it.action }).doesNotContain(ClimateAction.ToggleRearDefrost)
+        assertThat(BarControl.entries.map { it.action }.filterIsInstance<ClimateAction.CycleSeatHeat>().map { it.zone })
+            .containsExactly(Zone.DRIVER, Zone.PASSENGER)
     }
 
     @Test

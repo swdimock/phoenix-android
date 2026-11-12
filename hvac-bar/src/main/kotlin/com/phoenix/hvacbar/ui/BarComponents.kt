@@ -1,6 +1,7 @@
 package com.phoenix.hvacbar.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,10 +24,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,27 +35,44 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.phoenix.fytipc.climate.AirMode
+import com.phoenix.hvacbar.R
 import com.phoenix.uitheme.DisplayFont
+import com.phoenix.uitheme.PhoenixPalette
 import com.phoenix.uitheme.PhoenixShapes
 import com.phoenix.uitheme.PhoenixTheme
 
 internal val MinTouch = 64.dp
-private val ButtonShape = PhoenixShapes.chamfer(10.dp, 3.dp)
+
+/** Toggles and steppers: the asymmetric Phoenix chamfer. */
+private val ToggleShape = PhoenixShapes.chamfer(10.dp, 3.dp)
+
+/** Navigation controls (HOME): an even chamfer on all four corners, so they read as a different kind of key. */
+private val ActionShape = CutCornerShape(9.dp)
 private val SegmentShape = CutCornerShape(topEnd = 5.dp)
 private val DotShape = CutCornerShape(2.dp)
 
+private val CaptionSize = 11.sp
+
 /**
- * Chamfered touch target with three unmistakable states: ON = accent fill (brushed silver for Tuxedo Black) with
- * dark content; OFF / UNKNOWN = flat graphite, thin dim outline, light-grey content; pressed = brighter accent fill.
- * [accent] / [onAccent] override the theme accent with a flat colour (seat heat / cool).
+ * Raised, chamfered touch target. Three unmistakable states: ON = bold top-lit accent gradient (brushed silver for
+ * Tuxedo Black) with dark content; OFF / UNKNOWN = top-lit graphite slab, thin dim outline, light-grey content;
+ * pressed = brighter flat accent. A lit edge along the top and a shaded edge along the bottom give every key a
+ * little depth, so the bar sits with Android Auto's flat panels without disappearing into them.
+ * [accent] / [onAccent] swap the theme accent for a fixed colour (seat heat).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -67,6 +83,7 @@ internal fun BarButton(
     modifier: Modifier = Modifier,
     accent: Color? = null,
     onAccent: Color = PhoenixTheme.palette.onAccent,
+    shape: Shape = ToggleShape,
     onLongClick: (() -> Unit)? = null,
     content: @Composable (color: Color) -> Unit,
 ) {
@@ -76,16 +93,21 @@ internal fun BarButton(
     val lit = lamp == Lamp.ON
     val fill: Brush = when {
         pressed -> SolidColor(if (accent == null) palette.accentPressed else lerp(accent, Color.White, 0.3f))
-        lit -> if (accent == null) palette.activeFill else SolidColor(accent)
-        else -> SolidColor(palette.inactiveFill)
+        lit -> if (accent == null) palette.activeFill else PhoenixPalette.boldFill(accent)
+        else -> palette.inactiveFillBrush
+    }
+    val outline = when {
+        lit || pressed -> palette.bevelShadow
+        else -> palette.inactiveOutline
     }
     Box(
         modifier = modifier
             .defaultMinSize(minWidth = MinTouch, minHeight = MinTouch)
             .fillMaxHeight()
-            .clip(ButtonShape)
+            .clip(shape)
             .background(fill)
-            .then(if (lit || pressed) Modifier else Modifier.border(1.dp, palette.inactiveOutline, ButtonShape))
+            .bevel(palette, gloss = lit && !pressed)
+            .border(1.dp, outline, shape)
             .combinedClickable(
                 interactionSource = interaction,
                 indication = LocalIndication.current,
@@ -105,6 +127,22 @@ internal fun BarButton(
     }
 }
 
+/**
+ * Lit top edge, shaded bottom edge and (for [gloss]) a soft sheen over the upper half. Drawn over the fill,
+ * under the content; the enclosing clip trims it to the chamfer.
+ */
+private fun Modifier.bevel(palette: PhoenixPalette, gloss: Boolean): Modifier = drawWithContent {
+    if (gloss) {
+        drawRect(
+            Brush.verticalGradient(0f to Color.White.copy(alpha = 0.16f), 0.55f to Color.Transparent),
+        )
+    }
+    val edge = 1.5.dp.toPx()
+    drawLine(palette.bevelHighlight, Offset(0f, edge / 2), Offset(size.width, edge / 2), edge)
+    drawLine(palette.bevelShadow, Offset(0f, size.height - edge / 2), Offset(size.width, size.height - edge / 2), edge)
+    drawContent()
+}
+
 /** Text-labelled toggle, optionally with a small caption above the label. */
 @Composable
 internal fun LabelButton(
@@ -118,15 +156,7 @@ internal fun LabelButton(
 ) {
     BarButton(lamp = lamp, enabled = enabled, onClick = onClick, modifier = modifier) { color ->
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (caption != null) {
-                Text(
-                    caption,
-                    color = if (lamp == Lamp.ON) color.copy(alpha = 0.75f) else PhoenixTheme.palette.textMuted,
-                    fontSize = 11.sp,
-                    lineHeight = 12.sp,
-                    letterSpacing = 1.sp,
-                )
-            }
+            if (caption != null) Caption(caption, color, lamp)
             Text(
                 label,
                 color = color,
@@ -140,6 +170,18 @@ internal fun LabelButton(
     }
 }
 
+@Composable
+private fun Caption(text: String, contentColor: Color, lamp: Lamp) {
+    Text(
+        text,
+        color = if (lamp == Lamp.ON) contentColor.copy(alpha = 0.75f) else PhoenixTheme.palette.textMuted,
+        fontSize = CaptionSize,
+        lineHeight = 12.sp,
+        letterSpacing = 1.sp,
+        maxLines = 1,
+    )
+}
+
 /** Icon-only toggle. */
 @Composable
 internal fun IconToggle(
@@ -149,24 +191,86 @@ internal fun IconToggle(
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconSize: Int = 36,
 ) {
     BarButton(lamp = lamp, enabled = enabled, onClick = onClick, modifier = modifier) { color ->
-        Icon(icon, contentDescription = description, tint = color, modifier = Modifier.size(36.dp))
+        Icon(icon, contentDescription = description, tint = color, modifier = Modifier.size(iconSize.dp))
     }
 }
 
-/** Seat heater or cooler: icon plus one pip per level. Lit in the heat / cool colour rather than the accent. */
+/**
+ * Airflow MODE: cycles through the vehicle's outlets. Never "latched", so it keeps the graphite slab and shows the
+ * current outlet as a glyph (seated figure with arrows); AUTO and unknown fall back to text.
+ */
 @Composable
-internal fun SeatButton(
+internal fun ModeButton(mode: AirMode, enabled: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val palette = PhoenixTheme.palette
+    BarButton(lamp = Lamp.OFF, enabled = enabled, onClick = onClick, modifier = modifier) { _ ->
+        val glyph = HvacGlyphs.airflow(mode)
+        if (glyph != null) {
+            Icon(glyph, contentDescription = modeText(mode), tint = palette.text, modifier = Modifier.size(48.dp))
+        } else {
+            Text(
+                modeText(mode),
+                color = if (mode == AirMode.UNKNOWN) palette.textUnknown else palette.text,
+                fontFamily = DisplayFont,
+                fontSize = 22.sp,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+/**
+ * HOME: leaves whatever is projected (Android Auto, the radio app) for the launcher. Not a climate control, so it
+ * stays live while the vehicle link is down. Even chamfer + accent outline when elsewhere; filled like a latched
+ * toggle while the launcher is already on screen ([active]). Mark is the Hennessey "H" (untinted brand red).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun HomeButton(active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val palette = PhoenixTheme.palette
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val filled = active || pressed
+    val fill: Brush = when {
+        pressed -> SolidColor(palette.accentPressed)
+        active -> palette.activeFill
+        else -> palette.inactiveFillBrush
+    }
+    Box(
+        modifier = modifier
+            .defaultMinSize(minWidth = MinTouch, minHeight = MinTouch)
+            .fillMaxHeight()
+            .clip(ActionShape)
+            .background(fill)
+            .bevel(palette, gloss = active && !pressed)
+            .border(1.dp, if (filled) palette.bevelShadow else palette.accent, ActionShape)
+            .combinedClickable(interactionSource = interaction, indication = LocalIndication.current, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.hennessey_logo_square),
+            contentDescription = "home",
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxWidth(0.78f).fillMaxHeight(0.55f),
+        )
+    }
+}
+
+/** Seat heater: seat glyph plus one pip per level, lit in the heat colour rather than the accent. */
+@Composable
+internal fun SeatHeatButton(
     seat: SeatUi,
-    heat: Boolean,
     description: String,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    mirrored: Boolean = false,
 ) {
     val palette = PhoenixTheme.palette
-    val accent = if (heat) palette.heat else palette.cool
+    val accent = palette.heat
     BarButton(
         lamp = seat.lamp,
         enabled = enabled,
@@ -177,12 +281,12 @@ internal fun SeatButton(
     ) { color ->
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
-                if (heat) Icons.Filled.Whatshot else Icons.Filled.AcUnit,
+                if (mirrored) HvacGlyphs.SeatHeatMirrored else HvacGlyphs.SeatHeat,
                 contentDescription = description,
                 tint = color,
-                modifier = Modifier.size(30.dp),
+                modifier = Modifier.size(40.dp),
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
             LevelDots(seat.level, lit = seat.lamp == Lamp.ON, accent = accent, onAccent = color)
         }
     }
@@ -293,7 +397,7 @@ private fun FanGraph(segments: Int?, modifier: Modifier) {
                 Modifier
                     .weight(1f)
                     .fillMaxHeight(0.35f + 0.65f * (i + 1) / BarUiState.FAN_SEGMENTS)
-                    .background(if (on) palette.accent else palette.unlit, SegmentShape),
+                    .background(if (on) palette.activeFill else SolidColor(palette.unlit), SegmentShape),
             )
         }
     }

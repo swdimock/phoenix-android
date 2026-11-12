@@ -74,7 +74,7 @@ private fun Header(audioPath: AudioPathState, connection: ConnectionState) {
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RaptorWordmark()
+            HennesseyBadge()
             Spacer(Modifier.weight(1f))
             StatusChip(connection.label, connection.color(palette))
             Spacer(Modifier.width(12.dp))

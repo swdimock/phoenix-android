@@ -38,7 +38,11 @@ class PackageAaHost(
         val extras = AaLaunchExtras.from(settings())
         return app.launch { intent ->
             extras.forEach { (key, value) ->
-                if (value is Int) intent.putExtra(key, value) else intent.putExtra(key, value.toString())
+                when (value) {
+                    is Int -> intent.putExtra(key, value)
+                    is Boolean -> intent.putExtra(key, value)
+                    else -> intent.putExtra(key, value.toString())
+                }
             }
         }
     }
@@ -51,6 +55,9 @@ object AaLaunchExtras {
     const val EXTRA_PORT = "phoenix.port"
     const val EXTRA_INSET_BOTTOM = "phoenix.inset_bottom"
 
+    /** Whether the receiver should draw its own floating HOME button over the projection. */
+    const val EXTRA_HOME_BUTTON = "phoenix.home_button"
+
     /** Height of the hvac-bar overlay pinned to the bottom of the screen (hvac-bar `BarGeometry.HEIGHT_PX`). */
     const val HVAC_BAR_HEIGHT_PX = 227
 
@@ -61,6 +68,8 @@ object AaLaunchExtras {
             put(EXTRA_PORT, settings.aaTcpPort)
         }
         put(EXTRA_INSET_BOTTOM, HVAC_BAR_HEIGHT_PX)
+        // The HVAC bar carries HOME; the receiver's floating button would only cover Android Auto's own controls.
+        put(EXTRA_HOME_BUTTON, false)
     }
 
     /** "TCP 127.0.0.1:5277" or "USB", for the AA pane. */

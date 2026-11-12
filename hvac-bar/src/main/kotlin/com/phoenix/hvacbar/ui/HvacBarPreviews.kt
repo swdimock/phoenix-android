@@ -13,7 +13,7 @@ private fun SampleBar(
     preset: AccentPreset = AccentPreset.DEFAULT,
 ) {
     BarTheme(preset) {
-        HvacBar(state = barUiState(climate, connection, useCelsius = false), onControl = {}, onToggleUnits = {})
+        HvacBar(state = barUiState(climate, connection, useCelsius = false), onControl = {}, onToggleUnits = {}, onHome = {})
     }
 }
 
@@ -36,6 +36,10 @@ private fun PreviewAutoDual() = SampleBar(BarSamples.autoDual)
 @Preview(name = "Full AUTO (fan and airflow)", widthDp = 1200, heightDp = 227)
 @Composable
 private fun PreviewFullAuto() = SampleBar(BarSamples.fullAuto)
+
+@Preview(name = "Defrost (front defrost, FEET+DEF)", widthDp = 1200, heightDp = 227)
+@Composable
+private fun PreviewDefrost() = SampleBar(BarSamples.defrost)
 
 @Preview(name = "Disconnected", widthDp = 1200, heightDp = 227)
 @Composable

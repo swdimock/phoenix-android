@@ -15,13 +15,14 @@ class AaLaunchTest {
             "phoenix.host", "127.0.0.1",
             "phoenix.port", 5277,
             "phoenix.inset_bottom", 227,
+            "phoenix.home_button", false,
         )
     }
 
     @Test
     fun usbExtras_omitHostAndPort() {
         val extras = AaLaunchExtras.from(LauncherSettings(aaTransport = AaTransport.USB))
-        assertThat(extras).containsExactly("phoenix.transport", "usb", "phoenix.inset_bottom", 227)
+        assertThat(extras).containsExactly("phoenix.transport", "usb", "phoenix.inset_bottom", 227, "phoenix.home_button", false)
     }
 
     @Test

@@ -34,24 +34,22 @@ data class BarUiState(
     val interactive: Boolean,
     val power: Lamp,
     val auto: Lamp,
-    val rearDefrost: Lamp,
     val dual: Lamp,
     val ac: Lamp,
     val maxAc: Lamp,
     val frontDefrost: Lamp,
     val recirculate: Lamp,
-    /** Derived airflow mode name shown on the MODE button. */
-    val mode: String,
+    /** Derived airflow mode: drawn as a glyph on the MODE button ([modeText] for AUTO / unknown and descriptions). */
+    val mode: AirMode,
     val driverTemp: TempText,
     val passengerTemp: TempText,
     /** Lit fan segments out of [FAN_SEGMENTS]; null when unknown or under AUTO control. */
     val fanSegments: Int?,
     /** The blower is under AUTO control: segments are dimmed and labelled [AUTO_TEXT]. */
     val fanAuto: Boolean,
+    /** Heated seats only: the 2011 Raptor has no seat ventilation, so the bar never shows cooling controls. */
     val driverSeatHeat: SeatUi,
-    val driverSeatCool: SeatUi,
     val passengerSeatHeat: SeatUi,
-    val passengerSeatCool: SeatUi,
 ) {
     companion object {
         const val FAN_SEGMENTS = 7
@@ -67,23 +65,21 @@ fun barUiState(climate: ClimateState, connection: ConnectionState, useCelsius: B
         interactive = connection == ConnectionState.CONNECTED,
         power = Lamp.of(climate.power),
         auto = Lamp.of(climate.auto),
-        rearDefrost = Lamp.of(climate.rearDefrost),
         dual = Lamp.of(climate.dual),
         ac = Lamp.of(climate.ac),
         maxAc = Lamp.of(climate.maxAc),
         frontDefrost = Lamp.of(climate.frontDefrost),
         recirculate = Lamp.of(climate.recirculate),
-        mode = modeText(climate.mode),
+        mode = climate.mode,
         driverTemp = tempText(climate.driverTemp, useCelsius),
         passengerTemp = tempText(climate.passengerTemp, useCelsius),
         fanSegments = if (climate.fanAuto == true) null else fanSegments(climate.fanSpeed, climate.fanMax),
         fanAuto = climate.fanAuto == true,
         driverSeatHeat = SeatUi(climate.driverSeatHeat),
-        driverSeatCool = SeatUi(climate.driverSeatCool),
         passengerSeatHeat = SeatUi(climate.passengerSeatHeat),
-        passengerSeatCool = SeatUi(climate.passengerSeatCool),
     )
 
+/** Short name of [mode]: the MODE button's text for AUTO / unknown, and its content description otherwise. */
 internal fun modeText(mode: AirMode): String = when (mode) {
     AirMode.FACE -> "FACE"
     AirMode.FACE_FEET -> "FACE+FEET"
