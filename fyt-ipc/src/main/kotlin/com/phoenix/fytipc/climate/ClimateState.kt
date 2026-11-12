@@ -84,6 +84,11 @@ data class ClimateState(
     val tempUnitCelsius: Boolean? = null,
     val driverTemp: Setpoint = Setpoint(),
     val passengerTemp: Setpoint = Setpoint(),
+    /**
+     * Outside ambient from the truck OAT sensor ([com.phoenix.fytipc.MainCodes.U_TEMP_OUT] on MAIN).
+     * Encoding verified on WK2; F-150 still UNVERIFIED until captured in the truck.
+     */
+    val outsideTemp: Setpoint = Setpoint(),
     val driverSeatHeat: Int? = null,    // 0..3
     val passengerSeatHeat: Int? = null, // 0..3
     val driverSeatCool: Int? = null,    // 0..3; kept in the model for vehicles with ventilated seats (the 2011 Raptor has none; the bar hides it)
@@ -95,7 +100,7 @@ data class ClimateState(
 
     val hasAnyData: Boolean
         get() = power != null || auto != null || fanSpeed != null || fanAuto != null ||
-            driverTemp.isKnown || passengerTemp.isKnown
+            driverTemp.isKnown || passengerTemp.isKnown || outsideTemp.isKnown
 
     /** Copy with the airflow flags that make up [mode]; [AirMode.UNKNOWN] clears them to unreported. */
     fun withMode(mode: AirMode): ClimateState {

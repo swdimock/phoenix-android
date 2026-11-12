@@ -13,7 +13,14 @@ private fun SampleBar(
     preset: AccentPreset = AccentPreset.DEFAULT,
 ) {
     BarTheme(preset) {
-        HvacBar(state = barUiState(climate, connection, useCelsius = false), onControl = {}, onToggleUnits = {}, onHome = {})
+        HvacBar(
+            state = barUiState(climate, connection, useCelsius = false),
+            onControl = {},
+            onToggleUnits = {},
+            onHome = {},
+            clock = "3:04",
+            homeActive = true,
+        )
     }
 }
 

@@ -120,8 +120,9 @@ class MockRuntime private constructor(private val context: Context) {
         if (CanbusCodes.U_EXIST_AIR !in profile.audioReadinessCodes) {
             publish(ModuleUpdate(Modules.CANBUS, CanbusCodes.U_EXIST_AIR, intArrayOf(1)))
         }
-        // MAIN 40 = outside temp: tenths offset by 1000 in the low 16 bits, bit 28 valid (wiki/wk2-climate).
-        publish(ModuleUpdate(Modules.MAIN, 40, intArrayOf(0x10000000 or (1000 + 720))))
+        // MAIN 40 = outside temp: tenths °C offset by 1000 in the low 16 bits, bit 28 valid (wiki/wk2-climate).
+        // 220 tenths = 22.0 °C ≈ 72 °F — a plausible cabin-side ambient for the emulator.
+        publish(ModuleUpdate(Modules.MAIN, 40, intArrayOf(0x10000000 or (1000 + 220))))
     }
 
     /** Simulated ignition off: everything sleeps and the broadcast tells our apps. */

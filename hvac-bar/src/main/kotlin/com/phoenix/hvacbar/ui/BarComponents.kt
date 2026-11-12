@@ -259,6 +259,49 @@ internal fun HomeButton(active: Boolean, onClick: () -> Unit, modifier: Modifier
     }
 }
 
+/**
+ * Glanceable clock + truck outside ambient for the right end of the top climate row. Not tappable — just
+ * readouts, so no button chrome; a thin accent rule separates them.
+ */
+@Composable
+internal fun StatusReadouts(clock: String, outsideTemp: TempText, modifier: Modifier = Modifier) {
+    val palette = PhoenixTheme.palette
+    Row(
+        modifier = modifier.fillMaxHeight().padding(start = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            clock.ifEmpty { BarUiState.UNKNOWN_TEXT },
+            color = palette.text,
+            fontFamily = DisplayFont,
+            fontSize = 30.sp,
+            letterSpacing = 1.sp,
+            maxLines = 1,
+        )
+        Box(Modifier.width(1.dp).fillMaxHeight(0.55f).background(palette.accent))
+        Row(verticalAlignment = Alignment.Top) {
+            val known = outsideTemp.value != BarUiState.UNKNOWN_TEXT
+            Text(
+                outsideTemp.value,
+                color = if (known) palette.text else palette.textUnknown,
+                fontFamily = DisplayFont,
+                fontSize = 28.sp,
+                maxLines = 1,
+            )
+            if (outsideTemp.unit != null) {
+                Text(
+                    outsideTemp.unit,
+                    color = palette.accent,
+                    fontFamily = DisplayFont,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 3.dp, start = 1.dp),
+                )
+            }
+        }
+    }
+}
+
 /** Seat heater: seat glyph plus one pip per level, lit in the heat colour rather than the accent. */
 @Composable
 internal fun SeatHeatButton(

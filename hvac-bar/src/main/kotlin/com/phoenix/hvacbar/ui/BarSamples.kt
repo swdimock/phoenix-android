@@ -13,6 +13,7 @@ object BarSamples {
         recirculate = false, rearDefrost = false, frontDefrost = false,
         fanSpeed = 3, fanAuto = false,
         driverTemp = Setpoint(tenthsC = 222), passengerTemp = Setpoint(tenthsC = 222),
+        outsideTemp = Setpoint(tenthsC = 180), // 18.0 C ≈ 64 F
         driverSeatHeat = 2, passengerSeatHeat = 0,
     ).withMode(AirMode.FACE)
 
@@ -31,6 +32,7 @@ object BarSamples {
     val defrost = typicalDriving.withMode(AirMode.FEET_DEFROST).copy(
         ac = false, frontDefrost = true, recirculate = false, fanSpeed = 6,
         driverTemp = Setpoint(sentinel = Setpoint.Sentinel.HI), passengerTemp = Setpoint(tenthsC = 240),
+        outsideTemp = Setpoint(tenthsC = 20), // 2.0 C ≈ 36 F
         driverSeatHeat = 3, passengerSeatHeat = 1,
     )
 

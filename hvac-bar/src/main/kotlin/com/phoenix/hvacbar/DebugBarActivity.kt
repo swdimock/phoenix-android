@@ -53,6 +53,8 @@ class DebugBarActivity : ComponentActivity() {
                                 onToggleUnits = {},
                                 onHome = {},
                                 modifier = barModifier,
+                                clock = "3:04",
+                                homeActive = true,
                             )
                         }
                     } else {

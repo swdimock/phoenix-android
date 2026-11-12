@@ -2,6 +2,7 @@ package com.phoenix.fytipc.profile
 
 import com.google.common.truth.Truth.assertThat
 import com.phoenix.fytipc.CanbusCodes
+import com.phoenix.fytipc.MainCodes
 import com.phoenix.fytipc.ModuleUpdate
 import com.phoenix.fytipc.Modules
 import com.phoenix.fytipc.climate.AirMode
@@ -154,5 +155,16 @@ class ClimateReducersTest {
         assertThat(FytTemperature.step(FytTemperature.ofF(70), +1, r).displayF()).isEqualTo("71")
         assertThat(FytTemperature.encodeF(lo)).isEqualTo(-2)
         assertThat(FytTemperature.encodeF(hi)).isEqualTo(-3)
+    }
+
+    @Test
+    fun `outside ambient comes from MAIN U_TEMP_OUT`() {
+        assertThat(profile.climateSubscriptions[Modules.MAIN]).containsExactly(MainCodes.U_TEMP_OUT)
+        val packed = FytOutsideTemp.encode(Setpoint(tenthsC = 220))!!
+        val s = fold(up(MainCodes.U_TEMP_OUT, packed, module = Modules.MAIN))
+        assertThat(s.outsideTemp.tenthsC).isEqualTo(220)
+        assertThat(s.outsideTemp.displayF()).isEqualTo("72")
+        assertThat(fold(up(MainCodes.U_TEMP_OUT, 0, module = Modules.MAIN)).outsideTemp.isKnown).isFalse()
+        assertThat(FytOutsideTemp.decode(FytOutsideTemp.VALID_BIT or 50).isKnown).isFalse() // below OFFSET sanity
     }
 }

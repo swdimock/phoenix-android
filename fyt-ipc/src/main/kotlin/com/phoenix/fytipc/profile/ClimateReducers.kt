@@ -1,5 +1,6 @@
 package com.phoenix.fytipc.profile
 
+import com.phoenix.fytipc.MainCodes
 import com.phoenix.fytipc.ModuleCommand
 import com.phoenix.fytipc.ModuleUpdate
 import com.phoenix.fytipc.Modules
@@ -9,12 +10,16 @@ import com.phoenix.fytipc.climate.Zone
 
 /**
  * Shared reduce/command/encode logic for profiles that follow the FYT `U_AIR_*` conventions
- * ([Wk2ReferenceProfile] tables). Pure: everything a later update depends on (airflow flags,
- * temperature unit) is carried in [ClimateState].
+ * ([Wk2ReferenceProfile] tables), plus MAIN [MainCodes.U_TEMP_OUT] for outside ambient. Pure:
+ * everything a later update depends on (airflow flags, temperature unit) is carried in [ClimateState].
  */
 internal object ClimateReducers {
 
     fun reduceGeneric(state: ClimateState, u: ModuleUpdate): ClimateState {
+        if (u.module == Modules.MAIN && u.code == MainCodes.U_TEMP_OUT) {
+            val v = u.int0 ?: return state
+            return state.copy(outsideTemp = FytOutsideTemp.decode(v), lastUpdateMs = u.timestampMs)
+        }
         if (u.module != Modules.CANBUS) return state
         val v = u.int0 ?: return state
         val c = Wk2ReferenceProfile.Codes

@@ -53,6 +53,15 @@ object CanbusCodes {
     const val U_GPS_ANGLE = 1033
 }
 
+/**
+ * Well-known MAIN (module 0) codes. Outside ambient is reported here on FYT units, not under `U_AIR_*`
+ * (chrisuthe wiki: `U_TEMP_OUT`; packing verified on WK2 / `wk2-climate`). F-150 encoding UNVERIFIED.
+ */
+object MainCodes {
+    /** Outside air temperature. Packed: bit 28 = valid, low 16 bits = tenths °C + 1000. */
+    const val U_TEMP_OUT = 40
+}
+
 /** Binder wire-level constants for the SYU IPC. Transaction ids are assigned by AIDL declaration order. */
 object SyuBinder {
     const val SERVICE_ACTION = "com.syu.ms.toolkit"

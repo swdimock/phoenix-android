@@ -43,6 +43,8 @@ data class BarUiState(
     val mode: AirMode,
     val driverTemp: TempText,
     val passengerTemp: TempText,
+    /** Truck outside ambient (OAT); unknown until MAIN [com.phoenix.fytipc.MainCodes.U_TEMP_OUT] reports. */
+    val outsideTemp: TempText,
     /** Lit fan segments out of [FAN_SEGMENTS]; null when unknown or under AUTO control. */
     val fanSegments: Int?,
     /** The blower is under AUTO control: segments are dimmed and labelled [AUTO_TEXT]. */
@@ -73,6 +75,7 @@ fun barUiState(climate: ClimateState, connection: ConnectionState, useCelsius: B
         mode = climate.mode,
         driverTemp = tempText(climate.driverTemp, useCelsius),
         passengerTemp = tempText(climate.passengerTemp, useCelsius),
+        outsideTemp = tempText(climate.outsideTemp, useCelsius),
         fanSegments = if (climate.fanAuto == true) null else fanSegments(climate.fanSpeed, climate.fanMax),
         fanAuto = climate.fanAuto == true,
         driverSeatHeat = SeatUi(climate.driverSeatHeat),

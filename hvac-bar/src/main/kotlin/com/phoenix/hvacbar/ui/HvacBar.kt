@@ -31,12 +31,15 @@ import com.phoenix.uitheme.PhoenixTheme
 private val RowGap = 6.dp
 
 /** Width of the HOME rail on the left of the bar. */
-private val HomeRailWidth = 92.dp
+private val HomeRailWidth = 88.dp
+
+/** Fixed width for the clock + OAT cluster at the right end of the top row. */
+private val StatusWidth = 176.dp
 
 /**
- * The climate bar: a full-height HOME rail on the left and three rows of climate keys. Stateless: fills whatever
- * height it is given (227 px in the overlay). While [BarUiState.interactive] is false the climate keys are dimmed,
- * labelled, and ignore taps; HOME keeps working.
+ * The climate bar: a full-height HOME rail on the left and three rows of climate keys, with the system clock and
+ * truck OAT at the right of the top row. Stateless: fills whatever height it is given (227 px in the overlay).
+ * While [BarUiState.interactive] is false the climate keys are dimmed, labelled, and ignore taps; HOME keeps working.
  */
 @Composable
 fun HvacBar(
@@ -46,6 +49,7 @@ fun HvacBar(
     onHome: () -> Unit,
     modifier: Modifier = Modifier,
     homeActive: Boolean = false,
+    clock: String = "",
     hint: String? = null,
 ) {
     val enabled = state.interactive
@@ -58,15 +62,18 @@ fun HvacBar(
         ) {
             HomeButton(homeActive, onHome, Modifier.width(HomeRailWidth).fillMaxHeight())
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .alpha(if (enabled) 1f else 0.4f),
+                modifier = Modifier.weight(1f).fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(RowGap),
             ) {
-                ToggleRow(state, enabled, onControl, Modifier.weight(1f))
-                AuxRow(state, enabled, onControl, Modifier.weight(1f))
-                ControlRow(state, enabled, onControl, onToggleUnits, Modifier.weight(1f))
+                // Clock / OAT stay full opacity; only the climate keys dim when the vehicle link is down.
+                ToggleRow(state, enabled, onControl, clock, Modifier.weight(1f))
+                Column(
+                    modifier = Modifier.weight(2f).alpha(if (enabled) 1f else 0.4f),
+                    verticalArrangement = Arrangement.spacedBy(RowGap),
+                ) {
+                    AuxRow(state, enabled, onControl, Modifier.weight(1f))
+                    ControlRow(state, enabled, onControl, onToggleUnits, Modifier.weight(1f))
+                }
             }
         }
         val label = if (!enabled) stringResource(R.string.vehicle_link) else hint
@@ -75,12 +82,24 @@ fun HvacBar(
 }
 
 @Composable
-private fun ToggleRow(state: BarUiState, enabled: Boolean, onControl: (BarControl) -> Unit, modifier: Modifier) {
+private fun ToggleRow(
+    state: BarUiState,
+    enabled: Boolean,
+    onControl: (BarControl) -> Unit,
+    clock: String,
+    modifier: Modifier,
+) {
     BarRow(modifier) {
-        IconToggle(Icons.Filled.PowerSettingsNew, "power", state.power, enabled, { onControl(BarControl.POWER) }, Modifier.weight(1f))
-        LabelButton("AUTO", state.auto, enabled, { onControl(BarControl.AUTO) }, Modifier.weight(1f))
-        LabelButton("A/C", state.ac, enabled, { onControl(BarControl.AC) }, Modifier.weight(1f))
-        LabelButton("DUAL", state.dual, enabled, { onControl(BarControl.DUAL) }, Modifier.weight(1f))
+        Row(
+            modifier = Modifier.weight(1f).fillMaxHeight().alpha(if (enabled) 1f else 0.4f),
+            horizontalArrangement = Arrangement.spacedBy(RowGap),
+        ) {
+            IconToggle(Icons.Filled.PowerSettingsNew, "power", state.power, enabled, { onControl(BarControl.POWER) }, Modifier.weight(1f))
+            LabelButton("AUTO", state.auto, enabled, { onControl(BarControl.AUTO) }, Modifier.weight(1f))
+            LabelButton("A/C", state.ac, enabled, { onControl(BarControl.AC) }, Modifier.weight(1f))
+            LabelButton("DUAL", state.dual, enabled, { onControl(BarControl.DUAL) }, Modifier.weight(1f))
+        }
+        StatusReadouts(clock, state.outsideTemp, Modifier.width(StatusWidth))
     }
 }
 

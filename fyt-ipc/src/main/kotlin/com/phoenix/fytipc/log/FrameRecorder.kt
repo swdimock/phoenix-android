@@ -81,9 +81,12 @@ class FrameRecorder(
     }
 
     companion object {
-        /** Climate read codes plus audio-readiness codes of [profile], all on CANBUS. */
-        fun profileSubscriptions(profile: VehicleProfile): Map<Int, Set<Int>> =
-            mapOf(Modules.CANBUS to profile.climateReadCodes + profile.audioReadinessCodes)
+        /** Climate subscriptions of [profile], with audio-readiness codes merged into CANBUS. */
+        fun profileSubscriptions(profile: VehicleProfile): Map<Int, Set<Int>> {
+            val out = profile.climateSubscriptions.mapValues { it.value.toMutableSet() }.toMutableMap()
+            out.getOrPut(Modules.CANBUS) { mutableSetOf() }.addAll(profile.audioReadinessCodes)
+            return out
+        }
 
         fun toFile(
             toolkit: FytToolkit,

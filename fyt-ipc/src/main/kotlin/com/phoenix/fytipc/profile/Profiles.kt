@@ -134,6 +134,7 @@ object Wk2ReferenceProfile : VehicleProfile, ClimateCodec {
  *  - read codes for each bar element (baseline/diff method), and the canbus id (code 1000)
  *  - write indices for each bar button (two-pass sweep of `cmd(6, {1, N})`, wiki page 6)
  *  - setpoint range (Ford panel shows 60..85 F; UNVERIFIED). Seats: heated only, no ventilation (owner confirmed)
+ *  - outside ambient: MAIN [com.phoenix.fytipc.MainCodes.U_TEMP_OUT] packing (WK2 form assumed; capture to confirm)
  *  - audio readiness signal + source select command (Phase 1c recording)
  */
 object FordF150Profile : VehicleProfile by Wk2ReferenceProfile, ClimateCodec by Wk2ReferenceProfile {

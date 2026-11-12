@@ -1,7 +1,9 @@
 package com.phoenix.fytipc.profile
 
+import com.phoenix.fytipc.MainCodes
 import com.phoenix.fytipc.ModuleCommand
 import com.phoenix.fytipc.ModuleUpdate
+import com.phoenix.fytipc.Modules
 import com.phoenix.fytipc.climate.ClimateAction
 import com.phoenix.fytipc.climate.ClimateState
 
@@ -21,7 +23,17 @@ interface VehicleProfile {
     /** CANBUS codes to subscribe to for climate state. */
     val climateReadCodes: Set<Int>
 
-    /** Fold one CANBUS update into the climate state. Return [state] unchanged if the code is not climate. */
+    /**
+     * All climate subscriptions as module id -> codes. Defaults to CANBUS [climateReadCodes] plus
+     * MAIN [MainCodes.U_TEMP_OUT] (outside ambient). Override to drop OAT or add modules.
+     */
+    val climateSubscriptions: Map<Int, Set<Int>>
+        get() = mapOf(
+            Modules.CANBUS to climateReadCodes,
+            Modules.MAIN to setOf(MainCodes.U_TEMP_OUT),
+        )
+
+    /** Fold one module update into the climate state. Return [state] unchanged if the code is not climate. */
     fun reduce(state: ClimateState, update: ModuleUpdate): ClimateState
 
     /** Translate a bar action into a vendor command, or null if this vehicle cannot do it. */

@@ -29,6 +29,7 @@ class BarUiStateTest {
         assertThat(ui.interactive).isTrue()
         assertThat(ui.driverTemp).isEqualTo(TempText("--", null))
         assertThat(ui.passengerTemp).isEqualTo(TempText("--", null))
+        assertThat(ui.outsideTemp).isEqualTo(TempText("--", null))
         assertThat(ui.mode).isEqualTo(AirMode.UNKNOWN)
         assertThat(modeText(ui.mode)).isEqualTo("--")
         assertThat(ui.fanSegments).isNull()
@@ -127,6 +128,16 @@ class BarUiStateTest {
     @Test
     fun modeButtonCyclesTheMode() {
         assertThat(BarControl.MODE.action).isEqualTo(ClimateAction.CycleMode)
+    }
+
+    @Test
+    fun outsideTempFollowsTheUnitPreference() {
+        val climate = BarSamples.typicalDriving // outsideTemp 18.0 C
+        val f = barUiState(climate, ConnectionState.CONNECTED, useCelsius = false)
+        val c = barUiState(climate, ConnectionState.CONNECTED, useCelsius = true)
+        assertThat(f.outsideTemp.value).isEqualTo(climate.outsideTemp.displayF())
+        assertThat(c.outsideTemp.unit).isEqualTo("\u00B0C")
+        assertThat(f.outsideTemp.unit).isEqualTo("\u00B0F")
     }
 
     @Test

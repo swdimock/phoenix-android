@@ -129,6 +129,13 @@ vendor radio app and anything else without covering their UI. The launcher there
 foreground it also sends `com.phoenix.launcher.action.HOME` with `visible=true|false` (`LauncherHomeBroadcast`) so
 the bar can fill the HOME key; the bar's `HomeReceiver` updates an ephemeral `BarSettings.launcherHome` flag.
 
+**Clock and outside ambient.** The system clock and truck OAT sit at the right end of the top climate row
+(`StatusReadouts`), so they stay visible over Android Auto without crowding the HOME key. FYT reports OAT on MAIN
+module code `MainCodes.U_TEMP_OUT` (40), packed as bit 28 valid + (tenths °C + 1000) in the low 16 bits
+(`FytOutsideTemp`; verified on WK2 / `wk2-climate`). The F-150 packing is UNVERIFIED until captured in the truck;
+until then the readout shows `--` when nothing valid arrives. The climate repository subscribes via
+`VehicleProfile.climateSubscriptions` (CANBUS air codes + MAIN 40).
+
 ## Emulator
 
 AVD `phoenix_f150`: Android 12 (API 31) x86_64 google_apis, 1200x1600 @160dpi portrait (FYT convention

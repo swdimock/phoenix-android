@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,12 +52,20 @@ class ClimateRepository(
 
     private var subscription: Job? = null
 
-    /** Subscribes to the profile's climate codes. Idempotent. Failures are retried, never thrown. */
+    /** Subscribes to the profile's climate codes (CANBUS + MAIN OAT, etc.). Idempotent. Failures are retried, never thrown. */
     fun start() {
         if (subscription?.isActive == true) return
-        val codes = profile.climateReadCodes.toIntArray()
+        val subscriptions = profile.climateSubscriptions
         subscription = scope.launch {
-            flow { emitAll(toolkit.canbus.updates(*codes)) }
+            flow {
+                emitAll(
+                    merge(
+                        *subscriptions.map { (moduleId, codes) ->
+                            toolkit.module(moduleId).updates(*codes.toIntArray())
+                        }.toTypedArray(),
+                    ),
+                )
+            }
                 .retryWhen { cause, attempt ->
                     if (cause is CancellationException) return@retryWhen false
                     if (attempt == 0L) Log.w(TAG, "climate subscription failed; retrying", cause)

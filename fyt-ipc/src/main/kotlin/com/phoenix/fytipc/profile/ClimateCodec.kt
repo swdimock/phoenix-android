@@ -93,6 +93,28 @@ object FytTemperature {
  * cycle button; [AirMode.DEFROST] for "windshield only" is our mapping and UNVERIFIED. All-clear
  * reads as [AirMode.AUTO]; the front-defrost macro's up+body combination reads as [AirMode.UNKNOWN].
  */
+/**
+ * FYT outside ambient on MAIN [com.phoenix.fytipc.MainCodes.U_TEMP_OUT] (wiki / `wk2-climate`):
+ * bit 28 set means valid; low 16 bits are tenths °C offset by [OFFSET]. Cleared bit 28 or a value
+ * outside [TENTHS_MIN]..[TENTHS_MAX] is treated as unknown. F-150 packing UNVERIFIED.
+ */
+object FytOutsideTemp {
+    const val VALID_BIT = 1 shl 28
+    const val OFFSET = 1_000
+    const val TENTHS_MIN = -400  // -40.0 C
+    const val TENTHS_MAX = 600   //  60.0 C
+
+    fun decode(raw: Int): Setpoint {
+        if (raw and VALID_BIT == 0) return Setpoint()
+        val tenths = (raw and 0xFFFF) - OFFSET
+        return if (tenths in TENTHS_MIN..TENTHS_MAX) Setpoint(tenthsC = tenths) else Setpoint()
+    }
+
+    /** Packed MAIN wire value for [setpoint], or null when unknown. */
+    fun encode(setpoint: Setpoint): Int? =
+        setpoint.tenthsC?.takeIf { it in TENTHS_MIN..TENTHS_MAX }?.let { VALID_BIT or ((it + OFFSET) and 0xFFFF) }
+}
+
 object FytAirflow {
     /** Mode after [current] in [settable]; anything not in [settable] restarts at its first entry. */
     fun next(current: AirMode, settable: List<AirMode>): AirMode {
